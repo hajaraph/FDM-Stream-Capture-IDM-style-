@@ -1,6 +1,6 @@
 # FDM Stream Capture (Style IDM)
 
-[![Firefox Add-on](https://img.shields.io/badge/Firefox-Add--on-orange.svg)](https://addons.mozilla.org/en-US/firefox/addon/fdm-stream-capture-idm-style/)
+[![Firefox Add-on](https://img.shields.io/badge/Firefox-Add--on-orange.svg)](https://addons.mozilla.org/en-US/firefox/addon/fdm-stream-capture-style-idm/)
 
 Bienvenue dans le dépôt de **FDM Stream Capture**, l'extension "ultime" conçue pour pallier les faiblesses de l'extension officielle de Free Download Manager (FDM) sur Firefox.
 
@@ -12,7 +12,7 @@ Cette extension agit comme un "renifleur" (sniffer) de flux vidéos ultra-puissa
 
 ### 1. Télécharger l'extension
 Installez l'extension directement depuis le store officiel :
-👉 **[Télécharger sur Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fdm-stream-capture-idm-style/)**
+👉 **[Télécharger sur Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fdm-stream-capture-style-idm/)**
 
 ### 2. Procédure de liaison (Native Messaging) :
 
