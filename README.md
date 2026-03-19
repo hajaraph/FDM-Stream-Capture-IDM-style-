@@ -1,6 +1,6 @@
-# 🎥 FDM Stream Capture (Style IDM)
+# FDM Stream Capture (Style IDM)
 
-[![Firefox Add-on](https://img.shields.io/badge/Firefox-Add--on-orange.svg)](https://addons.mozilla.org/en-US/firefox/addon/fdm-stream-capture-style-idm/)
+[![Firefox Add-on](https://img.shields.io/badge/Firefox-Add--on-orange.svg)](https://addons.mozilla.org/en-US/firefox/addon/fdm-stream-capture-idm-style/)
 
 Bienvenue dans le dépôt de **FDM Stream Capture**, l'extension "ultime" conçue pour pallier les faiblesses de l'extension officielle de Free Download Manager (FDM) sur Firefox.
 
@@ -8,11 +8,11 @@ Cette extension agit comme un "renifleur" (sniffer) de flux vidéos ultra-puissa
 
 ---
 
-## 🚀 Installation & Activation Rapide
+## Installation & Activation Rapide
 
 ### 1. Télécharger l'extension
 Installez l'extension directement depuis le store officiel :
-👉 **[Télécharger sur Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fdm-stream-capture-style-idm/)**
+👉 **[Télécharger sur Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fdm-stream-capture-idm-style/)**
 
 ### 2. Procédure de liaison (Native Messaging) :
 
@@ -25,26 +25,26 @@ Pour que Firefox puisse communiquer avec **Free Download Manager**, une liaison 
 
 ---
 
-## ✨ Fonctionnalités Principales
+## Fonctionnalités Principales
 
-### 1. 🕵️‍♂️ Détection de Flux Avancée (M3U8, MP4, DASH)
+### 1. Détection de Flux Avancée (M3U8, MP4, DASH)
 *   Écoute silencieuse du trafic réseau (`webRequest.onResponseStarted`).
 *   Analyse combinée des **Extensions d'URL** (`.m3u8`, `.ts`, `.mp4`) et des **Content-Types** HTTP.
 *   Extraction propre du nom du fichier basée sur le titre de la page.
 
-### 2. 📺 Support Optimisé pour YouTube
+### 2. Support Optimisé pour YouTube
 *   Contournement du **Bug 413 (Payload Too Large)** de FDM.
 *   Nettoyage drastique de l'URL YouTube envoyée à FDM.
 
-### 3. 🧹 Nettoyage Proactif (Garbage Collection)
+### 3. Nettoyage Proactif (Garbage Collection)
 *   Vérification des Iframes vivants : les flux sont supprimés de la mémoire dès qu'un lecteur est fermé ou remplacé.
 
-### 4. 💾 Persistance Mémoire (Manifest V3)
+### 4. Persistance Mémoire (Manifest V3)
 *   Système d'**Hydratation** via `browser.storage.local` pour éviter l'amnésie du Service Worker de Firefox.
 
 ---
 
-## 🏗️ Pour les Développeurs (Packaging)
+## Pour les Développeurs (Packaging)
 
 Si vous souhaitez modifier et republier l'extension :
 

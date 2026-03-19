@@ -35,37 +35,40 @@ function injectStyles() {
             z-index: 2147483647;
             background: #0f172a;
             color: #f8fafc;
-            padding: 8px 12px;
-            font-size: 12px;
+            padding: 5px 10px;
+            font-size: 11px;
             font-weight: 500;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
             display: none;
             font-family: system-ui, -apple-system, sans-serif;
             transition: all 0.15s ease;
             border: 1px solid #334155;
+            max-width: 250px;
+            white-space: nowrap;
         }
         
         #fdm-download-button:hover {
             background: #1e293b;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
         }
 
         #fdm-btn-main {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         #fdm-dropdown-menu {
             position: absolute;
-            top: calc(100% + 5px);
+            top: calc(100% + 4px);
             left: 0;
             background: #ffffff;
-            color: #333333;
-            min-width: 350px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            color: #1e293b;
+            min-width: 250px;
+            max-width: 320px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             border: 1px solid #e2e8f0;
             border-radius: 6px;
             display: none;

@@ -76,6 +76,12 @@ function addGroup(container, title, items) {
         const infoDiv = document.createElement('div');
         infoDiv.className = 'stream-info';
 
+        // Add Type Badge
+        const badge = document.createElement('span');
+        badge.className = 'type-badge type-' + (stream.type || 'videos');
+        badge.textContent = stream.type === 'youtube' ? 'YouTube' : (stream.type === 'manifests' ? 'HLS/DASH' : (stream.type === 'segments' ? 'SEGMENT' : 'VIDEO'));
+        infoDiv.appendChild(badge);
+
         const titleDiv = document.createElement('div');
         titleDiv.className = 'stream-title';
         titleDiv.title = stream.title || '';
@@ -198,7 +204,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnClearCart.addEventListener('click', async () => {
         await browser.runtime.sendMessage({ type: "CLEAR_CATCH_LOG" });
+        batchItems = [];
         btnShowCart.textContent = `${strCart} (0)`;
+        btnDlSelected.textContent = `${strDlSelected} (0)`;
         btnDlSelected.style.display = 'none';
         btnClearCart.style.display = 'none';
         btnScan.style.display = 'block';

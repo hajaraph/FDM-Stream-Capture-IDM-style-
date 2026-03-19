@@ -79,8 +79,14 @@
     "optHiddenStreamsDesc": {
         "message": "Analyse dynamiquement le code source et les scripts de la page courante pour extraire les URL cachées (.m3u8, .mp4, etc.) invisibles aux méthodes classiques."
     },
+    "optSmartNamingTitle": {
+        "message": "Nommage Intelligent (Style IDM)"
+    },
+    "optSmartNamingDesc": {
+        "message": "Nettoie automatiquement les titres des vidéos (supprime 'Watch Online', les noms de sites, etc.) pour des fichiers bien nommés dans FDM."
+    },
     "optSaved": {
-        "message": "✓ Paramètres enregistrés"
+        "message": "Paramètres enregistrés"
     },
     "btnScanPage": {
         "message": "Scanner la page"

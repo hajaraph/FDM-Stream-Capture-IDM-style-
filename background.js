@@ -32,7 +32,8 @@ let extensionSettings = {
     minSizeEnabled: true,
     minSizeMB: 1,
     detectSubtitles: true,
-    scanHiddenStreams: true
+    scanHiddenStreams: true,
+    smartNaming: true
 };
 
 async function hydrate() {
@@ -58,6 +59,63 @@ function persist() {
     browser.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => { });
 }
 
+// --- INTELLIGENT NAMING ENGINE ---
+function getSmartFileName(rawTitle, url, isYoutube = false) {
+    if (!rawTitle || rawTitle === "Vidéo détectée" || rawTitle === "Vidéo cachée") {
+        // Tenter d'extraire du nom de fichier dans l'URL si le titre est générique
+        try {
+            const urlPath = new URL(url).pathname;
+            const fileName = urlPath.substring(urlPath.lastIndexOf('/') + 1);
+            if (fileName && fileName.includes('.') && fileName.length > 5) {
+                rawTitle = fileName.split('.')[0];
+            }
+        } catch (e) {}
+    }
+
+    let name = rawTitle || "Video_Stream";
+
+    // 1. Supprimer les noms de sites communs et séparateurs à la fin
+    // Ex: "Movie Title - Netflix" -> "Movie Title"
+    const siteSeparators = [" - ", " | ", " — ", " : ", " » ", " « ", " // "];
+    for (const sep of siteSeparators) {
+        if (name.includes(sep)) {
+            const parts = name.split(sep);
+            // On garde généralement la partie la plus longue ou la première
+            if (parts[0].length > 5) name = parts[0];
+            else if (parts.length > 1) name = parts[1];
+        }
+    }
+
+    // 2. Nettoyage des mots "parasites" de SEO/Streaming (Case Insensitive)
+    const junkWords = [
+        /watch\s+/gi, /\s+online/gi, /\s+streaming/gi, /\s+free/gi, 
+        /full\s+episode/gi, /official\s+video/gi, /official\s+trailer/gi,
+        /\s+hd/gi, /\s+1080p/gi, /\s+720p/gi, /\[.*?\]/g, /\(.*?\)/g
+    ];
+    
+    junkWords.forEach(regex => {
+        name = name.replace(regex, "");
+    });
+
+    // 3. Caractères interdits Windows
+    name = name.replace(/[\\/:*?"<>|]/g, "-").trim();
+    
+    // 4. Fallback si vide après nettoyage
+    if (!name || name.length < 2) name = "FDM_Download_" + Math.floor(Math.random() * 1000);
+
+    // 5. Gestion de l'extension
+    let extMatch = url.match(/\.(mp4|mkv|avi|webm|m3u8|ts|mp3|flac|wav|jpg|png|gif|pdf|zip|rar)(?:\?|$)/i);
+    let ext = extMatch ? extMatch[1].toLowerCase() : (isYoutube ? "mp4" : "mp4");
+    
+    if (url.includes('.m3u8') || url.includes('.m3u')) ext = "m3u8";
+
+    if (!name.toLowerCase().endsWith('.' + ext)) {
+        name += '.' + ext;
+    }
+
+    return name;
+}
+
 function addToCatchLog(entry) {
     if (!catchLog.some(s => s.url === entry.url)) {
         catchLog.unshift(entry);
@@ -76,21 +134,7 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
         });
 
         // --- SMART NAMING (IDM STYLE) ---
-        let cleanName = filename.replace(/[\\/:*?"<>|]/g, "-").trim();
-        if (!cleanName) cleanName = "Stream_Catcher_Video";
-
-        let extMatch = url.match(/\.(mp4|mkv|avi|webm|m3u8|ts)(?:\?|$)/i);
-        let ext = extMatch ? extMatch[1].toLowerCase() : "mp4";
-        if (isYoutube) ext = "mp4";
-
-        if (!cleanName.toLowerCase().endsWith('.' + ext)) {
-            // Empêcher FDM de se tromper de format sur les m3u8
-            if (url.includes('.m3u8') || url.includes('.m3u')) {
-                cleanName += '.m3u8';
-            } else {
-                cleanName += '.' + ext;
-            }
-        }
+        let cleanName = extensionSettings.smartNaming ? getSmartFileName(filename, url, isYoutube) : filename;
 
         let downloadObj = {
             url: url,
@@ -138,16 +182,8 @@ async function sendBatchToFDM(batchItems) {
         });
 
         let downloadObjs = batchItems.map(item => {
-            let nameFromItem = item.filename || item.title || "Stream_Catcher_Batch_Item";
-            let cleanName = nameFromItem.replace(/[\\/:*?"<>|]/g, "-").trim();
-            if (!cleanName) cleanName = "Stream_Catcher_Batch_Item";
-
-            let extMatch = item.url.match(/\.(mp4|mkv|avi|webm|m3u8|ts|mp3|flac|wav|jpg|png|gif|pdf|zip|rar)(?:\?|$)/i);
-            let ext = extMatch ? extMatch[1].toLowerCase() : "";
-
-            if (ext && !cleanName.toLowerCase().endsWith('.' + ext)) {
-                cleanName += '.' + ext;
-            }
+            let nameFromItem = item.filename || item.title || "Stream_Catcher_Item";
+            let cleanName = extensionSettings.smartNaming ? getSmartFileName(nameFromItem, item.url, false) : nameFromItem;
 
             return {
                 url: item.url,

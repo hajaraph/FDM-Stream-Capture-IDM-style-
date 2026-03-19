@@ -3,7 +3,8 @@ const defaultSettings = {
     minSizeEnabled: true,
     minSizeMB: 1,
     detectSubtitles: true,
-    scanHiddenStreams: true
+    scanHiddenStreams: true,
+    smartNaming: true
 };
 
 let statusTimeout = null;
@@ -14,7 +15,8 @@ function saveOptions() {
         minSizeEnabled: document.getElementById('minSizeEnabled').checked,
         minSizeMB: parseInt(document.getElementById('minSizeMB').value, 10) || 1,
         detectSubtitles: document.getElementById('detectSubtitles').checked,
-        scanHiddenStreams: document.getElementById('scanHiddenStreams').checked
+        scanHiddenStreams: document.getElementById('scanHiddenStreams').checked,
+        smartNaming: document.getElementById('smartNaming').checked
     };
 
     browser.storage.local.set({ extensionSettings: settings }).then(() => {
@@ -49,6 +51,7 @@ function restoreOptions() {
         document.getElementById('minSizeMB').value = settings.minSizeMB;
         document.getElementById('detectSubtitles').checked = settings.detectSubtitles;
         document.getElementById('scanHiddenStreams').checked = settings.scanHiddenStreams;
+        document.getElementById('smartNaming').checked = settings.smartNaming;
     });
 }
 

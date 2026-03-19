@@ -79,8 +79,14 @@
     "optHiddenStreamsDesc": {
         "message": "Dynamically analyzes the active page's DOM and scripts to extract hidden video URLs (.m3u8, .mp4, etc.) otherwise invisible to classic methods."
     },
+    "optSmartNamingTitle": {
+        "message": "Intelligent Naming (IDM style)"
+    },
+    "optSmartNamingDesc": {
+        "message": "Automatically cleans video titles (removes 'Watch Online', site names, etc.) for well-named files in FDM."
+    },
     "optSaved": {
-        "message": "✓ Settings saved"
+        "message": "Settings saved"
     },
     "btnScanPage": {
         "message": "Scan Page"

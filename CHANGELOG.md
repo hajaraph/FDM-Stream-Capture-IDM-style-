@@ -1,6 +1,36 @@
 # FDM Stream Capture — Notes de version
 
-## Version 1.5 — 13 Mars 2026
+## Version 1.7 — 19 Mars 2026
+
+### 🚀 Améliorations majeures
+
+#### 🏷️ Moteur de Nommage Intelligent (Style IDM)
+- Nouvel algorithme de nettoyage automatique des noms de fichiers.
+- Supprime les noms de sites à la fin (ex: "| YouTube", "- Streaming").
+- Nettoie les balises SEO (ex: "Watch Online", "Full HD").
+- Supprime les tags entre crochets et parenthèses (ex: "[1080p]").
+- Nouvelle option activable dans les Paramètres Profil.
+
+#### 🎨 Nouvelle Interface "Card-Based Minimalist"
+- Refonte complète du Popup avec un design plus léger et contemporain.
+- Utilisation de cartes avec ombres douces et coins arrondis.
+- Typographie Sans Serif moderne et aérée (Inter-style).
+- Intégration de badges visuels de couleur pour identifier les types de flux (YouTube, HLS, MP4).
+
+#### 🖱️ Bouton Flottant "Pixel Perfect"
+- Design aminci et minimaliste du bouton au survol des lecteurs vidéo.
+- Suppression des effets de flou (blur) pour une netteté maximale.
+- Micro-animations de survol plus fluides sans distorsion.
+
+#### 🧹 Nettoyage Glyphique
+- Retrait de tous les emojis et symboles spéciaux de l'interface pour une expérience plus sobre et professionnelle.
+
+### 🔧 Corrections de bugs
+- **Correction Panier** : Résolution du bug où le compteur de téléchargement en lot ne se remettait pas à zéro après avoir vidé le panier.
+- **Synchronisation Settings** : Amélioration de la réactivité du chargement des paramètres au démarrage de l'extension.
+
+---
+
 
 ### 🆕 Nouvelles fonctionnalités
 
