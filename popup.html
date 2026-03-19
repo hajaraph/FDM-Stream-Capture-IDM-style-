@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { width: 350px; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #ffffff; color: #333; }
+        header { background: #0f172a; color: white; padding: 10px 15px; font-size: 14px; font-weight: 500; text-align: center; position: relative; }
+        .settings-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; width: 24px; height: 24px; border-radius: 50%; padding: 0; transition: 0.15s; display: flex; align-items: center; justify-content: center; }
+        .settings-btn:hover { background: #1e293b; color: white; }
+        #stream-list { padding: 10px; max-height: 400px; overflow-y: auto; }
+        .group-section { margin-bottom: 12px; }
+        .group-title { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
+        
+        .stream-item { 
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px;
+            display: flex; flex-direction: column; transition: all 0.15s;
+        }
+        .stream-item:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        .stream-info { display: flex; flex-direction: column; margin-bottom: 6px; }
+        .stream-title { font-size: 13px; font-weight: 500; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .stream-url { font-size: 10px; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .actions { display: flex; gap: 6px; }
+        button { flex: 1; padding: 6px 10px; border-radius: 4px; border: none; font-size: 11px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+        .btn-download { background: #0ea5e9; color: white; }
+        .btn-download:hover { background: #0284c7; }
+        .btn-copy { background: #e2e8f0; color: #475569; }
+        .btn-copy:hover { background: #cbd5e1; }
+        
+        .empty-msg { text-align: center; padding: 30px 15px; font-size: 12px; color: #94a3b8; }
+        
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .footer-actions { padding: 10px; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; background: #f8fafc; }
+        .btn-scan { flex: 1; background: #6366f1; color: white; padding: 8px; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; transition: 0.15s; font-size: 12px; }
+        .btn-scan:hover { background: #4f46e5; }
+        .btn-scan.success { background: #10b981; }
+        .btn-scan.success:hover { background: #059669; }
+        
+        .checkbox-container { display: none; margin-right: 8px; align-items: center; }
+        .stream-item.selectable { flex-direction: row; align-items: center; cursor: pointer; }
+        .stream-item.selectable .stream-info { margin-bottom: 0; flex: 1; overflow: hidden; }
+        .stream-item.selectable .actions { display: none; }
+    </style>
+</head>
+<body>
+    <header>
+        <span id="header-title">...</span>
+        <button id="open-settings" class="settings-btn" title="Paramètres">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+        </button>
+    </header>
+    <div id="stream-list">
+        <!-- populated by js -->
+    </div>
+    <div class="footer-actions">
+        <button id="btn-scan-page" class="btn-scan">Scanner la page</button>
+        <button id="btn-show-cart" class="btn-scan" style="background:#f59e0b; flex: 0.6;">Panier (0)</button>
+        <button id="btn-dl-selected" class="btn-scan success" style="display:none;">Télécharger sélection (0)</button>
+        <button id="btn-clear-cart" class="btn-scan" style="display:none; background:#ef4444; flex:0.4;">Vider</button>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

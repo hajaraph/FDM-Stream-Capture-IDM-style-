@@ -1,0 +1,17 @@
+# Extensions et archives
+*.zip
+*.xpi
+
+# Systèmes
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Fichiers temporaires ou locaux de dev
+/tmp/
+.gemini/
+setup-fdm-link.ps1
