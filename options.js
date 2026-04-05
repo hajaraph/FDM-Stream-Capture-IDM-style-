@@ -19,7 +19,7 @@ function saveOptions() {
         smartNaming: document.getElementById('smartNaming').checked
     };
 
-    browser.storage.local.set({ extensionSettings: settings }).then(() => {
+    api.storage.local.set({ extensionSettings: settings }).then(() => {
         const status = document.getElementById('status');
         status.style.display = 'block';
 
@@ -37,13 +37,13 @@ function restoreOptions() {
     // Translate the page
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const messageKey = el.getAttribute('data-i18n');
-        const message = browser.i18n.getMessage(messageKey);
+        const message = api.i18n.getMessage(messageKey);
         if (message) {
             el.textContent = message;
         }
     });
 
-    browser.storage.local.get('extensionSettings').then(data => {
+    api.storage.local.get('extensionSettings').then(data => {
         const settings = { ...defaultSettings, ...(data.extensionSettings || {}) };
 
         document.getElementById('showButton').checked = settings.showButton;

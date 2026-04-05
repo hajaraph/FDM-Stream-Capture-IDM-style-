@@ -1,8 +1,8 @@
 async function loadStreams() {
     try {
-        document.getElementById('header-title').innerText = browser.i18n.getMessage("popupTitle");
+        document.getElementById('header-title').innerText = api.i18n.getMessage("popupTitle");
 
-        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+        const tabs = await api.tabs.query({ active: true, currentWindow: true });
         if (!tabs || tabs.length === 0) return;
 
         const currentTab = tabs[0];
@@ -10,7 +10,7 @@ async function loadStreams() {
         const currentUrl = currentTab.url || "";
         const streamList = document.getElementById('stream-list');
 
-        const streams = await browser.runtime.sendMessage({ type: "GET_STREAMS", tabId: tabId, tabUrl: currentUrl, tabTitle: currentTab.title }) || [];
+        const streams = await api.runtime.sendMessage({ type: "GET_STREAMS", tabId: tabId, tabUrl: currentUrl, tabTitle: currentTab.title }) || [];
 
         streamList.innerHTML = '';
 
@@ -18,7 +18,7 @@ async function loadStreams() {
             streamList.textContent = '';
             const msgDiv = document.createElement('div');
             msgDiv.className = 'empty-msg';
-            msgDiv.textContent = browser.i18n.getMessage("emptyMsg");
+            msgDiv.textContent = api.i18n.getMessage("emptyMsg");
             streamList.appendChild(msgDiv);
             return;
         }
@@ -34,20 +34,20 @@ async function loadStreams() {
         };
 
         // On affiche les groupes s'ils existent
-        if (groups.youtube.length > 0) addGroup(streamList, browser.i18n.getMessage("groupYoutube"), groups.youtube);
-        if (groups.manifests.length > 0) addGroup(streamList, browser.i18n.getMessage("groupManifests"), groups.manifests);
-        if (groups.videos.length > 0) addGroup(streamList, browser.i18n.getMessage("groupVideos"), groups.videos);
-        if (groups.segments.length > 0) addGroup(streamList, browser.i18n.getMessage("groupSegments"), groups.segments);
+        if (groups.youtube.length > 0) addGroup(streamList, api.i18n.getMessage("groupYoutube"), groups.youtube);
+        if (groups.manifests.length > 0) addGroup(streamList, api.i18n.getMessage("groupManifests"), groups.manifests);
+        if (groups.videos.length > 0) addGroup(streamList, api.i18n.getMessage("groupVideos"), groups.videos);
+        if (groups.segments.length > 0) addGroup(streamList, api.i18n.getMessage("groupSegments"), groups.segments);
 
         // Sécurité : Afficher tout ce qui n'a pas été groupé
         const others = streams.filter(s => s.type !== 'youtube' && s.type !== 'manifests' && s.type !== 'videos' && s.type !== 'segments');
-        if (others.length > 0) addGroup(streamList, browser.i18n.getMessage("groupOthers"), others);
+        if (others.length > 0) addGroup(streamList, api.i18n.getMessage("groupOthers"), others);
 
         attachEvents();
 
     } catch (err) {
         console.error("Popup Error:", err);
-        const errorMsg = browser.i18n.getMessage("errorMsg", err.message);
+        const errorMsg = api.i18n.getMessage("errorMsg", err.message);
         const listDiv = document.getElementById('stream-list');
         listDiv.textContent = '';
         const errorDiv = document.createElement('div');
@@ -104,12 +104,12 @@ function addGroup(container, title, items) {
         btnDl.setAttribute('data-name', stream.title || '');
         btnDl.setAttribute('data-referer', stream.pageUrl || '');
         btnDl.setAttribute('data-youtube', isYt);
-        btnDl.textContent = browser.i18n.getMessage("btnDownload");
+        btnDl.textContent = api.i18n.getMessage("btnDownload");
 
         const btnCp = document.createElement('button');
         btnCp.className = 'btn-copy';
         btnCp.setAttribute('data-url', stream.url);
-        btnCp.textContent = browser.i18n.getMessage("btnCopy");
+        btnCp.textContent = api.i18n.getMessage("btnCopy");
 
         actionsDiv.appendChild(btnDl);
         actionsDiv.appendChild(btnCp);
@@ -131,7 +131,7 @@ function attachEvents() {
             const referer = e.target.getAttribute('data-referer');
             const isYoutube = e.target.getAttribute('data-youtube') === "true";
 
-            browser.runtime.sendMessage({
+            api.runtime.sendMessage({
                 type: "SEND_TO_FDM",
                 url: url,
                 filename: name,
@@ -146,24 +146,24 @@ function attachEvents() {
         btn.onclick = (e) => {
             const url = e.target.getAttribute('data-url');
             navigator.clipboard.writeText(url).then(() => {
-                e.target.innerText = browser.i18n.getMessage("btnCopied");
-                setTimeout(() => e.target.innerText = browser.i18n.getMessage("btnCopy"), 1500);
+                e.target.innerText = api.i18n.getMessage("btnCopied");
+                setTimeout(() => e.target.innerText = api.i18n.getMessage("btnCopy"), 1500);
             });
         };
     });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('header-title').textContent = browser.i18n.getMessage("popupTitle") || "FDM Stream Capture";
+    document.getElementById('header-title').textContent = api.i18n.getMessage("popupTitle") || "FDM Stream Capture";
 
     // Wire up the settings button
     const settingsBtn = document.getElementById('open-settings');
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => {
-            if (browser.runtime.openOptionsPage) {
-                browser.runtime.openOptionsPage();
+            if (api.runtime.openOptionsPage) {
+                api.runtime.openOptionsPage();
             } else {
-                window.open(browser.runtime.getURL('options.html'));
+                window.open(api.runtime.getURL('options.html'));
             }
         });
     }
@@ -174,14 +174,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnClearCart = document.getElementById('btn-clear-cart');
     let batchItems = [];
 
-    const strCart = browser.i18n.getMessage("strCart") || "Panier";
-    const strDlSelected = browser.i18n.getMessage("strDlSelected") || "Télécharger sélection";
+    const strCart = api.i18n.getMessage("strCart") || "Panier";
+    const strDlSelected = api.i18n.getMessage("strDlSelected") || "Télécharger sélection";
 
-    btnScan.textContent = browser.i18n.getMessage("btnScanPage") || "Scanner la page";
-    btnClearCart.textContent = browser.i18n.getMessage("btnClearCart") || "Vider";
+    btnScan.textContent = api.i18n.getMessage("btnScanPage") || "Scanner la page";
+    btnClearCart.textContent = api.i18n.getMessage("btnClearCart") || "Vider";
 
     // Init Cart badge
-    browser.runtime.sendMessage({ type: "GET_CATCH_LOG" }).then(log => {
+    api.runtime.sendMessage({ type: "GET_CATCH_LOG" }).then(log => {
         if (log && log.length > 0) {
             btnShowCart.textContent = `${strCart} (${log.length})`;
         } else {
@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnShowCart.addEventListener('click', async () => {
         try {
-            const log = await browser.runtime.sendMessage({ type: "GET_CATCH_LOG" }) || [];
+            const log = await api.runtime.sendMessage({ type: "GET_CATCH_LOG" }) || [];
             batchItems = log.map(s => ({
                 url: s.url,
                 title: s.title || "Vidéo",
@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnClearCart.addEventListener('click', async () => {
-        await browser.runtime.sendMessage({ type: "CLEAR_CATCH_LOG" });
+        await api.runtime.sendMessage({ type: "CLEAR_CATCH_LOG" });
         batchItems = [];
         btnShowCart.textContent = `${strCart} (0)`;
         btnDlSelected.textContent = `${strDlSelected} (0)`;
@@ -215,11 +215,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnScan.addEventListener('click', async () => {
-        btnScan.textContent = browser.i18n.getMessage("scanInProgress") || "Recherche en cours...";
+        btnScan.textContent = api.i18n.getMessage("scanInProgress") || "Recherche en cours...";
         try {
-            const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+            const tabs = await api.tabs.query({ active: true, currentWindow: true });
             if (tabs && tabs[0]) {
-                const response = await browser.tabs.sendMessage(tabs[0].id, { type: "SCAN_PAGE" });
+                const response = await api.tabs.sendMessage(tabs[0].id, { type: "SCAN_PAGE" });
                 if (response && response.items) {
                     batchItems = response.items;
                     renderBatchList(batchItems);
@@ -227,8 +227,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (e) {
             console.error(e);
-            btnScan.textContent = browser.i18n.getMessage("scanError") || "Erreur (Rechargez la page)";
-            setTimeout(() => btnScan.textContent = browser.i18n.getMessage("btnScanPage") || "Scanner la page", 2000);
+            btnScan.textContent = api.i18n.getMessage("scanError") || "Erreur (Rechargez la page)";
+            setTimeout(() => btnScan.textContent = api.i18n.getMessage("btnScanPage") || "Scanner la page", 2000);
         }
     });
 
@@ -238,11 +238,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedItems = batchItems.filter(item => selectedUrls.includes(item.url));
 
         if (selectedItems.length > 0) {
-            browser.runtime.sendMessage({
+            api.runtime.sendMessage({
                 type: "DOWNLOAD_BATCH",
                 items: selectedItems
             });
-            btnDlSelected.textContent = browser.i18n.getMessage("cartSentMsg") || "Fichiers envoyés !";
+            btnDlSelected.textContent = api.i18n.getMessage("cartSentMsg") || "Fichiers envoyés !";
             setTimeout(() => window.close(), 1500);
         }
     });
@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (items.length === 0) {
             const msg = document.createElement('div');
             msg.className = 'empty-msg';
-            msg.textContent = browser.i18n.getMessage("cartEmptyMsg") || "Aucun média trouvé.";
+            msg.textContent = api.i18n.getMessage("cartEmptyMsg") || "Aucun média trouvé.";
             streamList.appendChild(msg);
             return;
         }
@@ -268,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
         section.className = 'group-section';
         const h3 = document.createElement('h3');
         h3.className = 'group-title';
-        const selMsg = browser.i18n.getMessage("cartSelectMsg") || "Sélectionnez les fichiers";
+        const selMsg = api.i18n.getMessage("cartSelectMsg") || "Sélectionnez les fichiers";
         h3.textContent = `${selMsg} (${items.length})`;
         section.appendChild(h3);
 
@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleAll.style.display = 'block';
         toggleAll.style.marginBottom = '10px';
         toggleAll.style.fontWeight = 'bold';
-        const toggleStr = browser.i18n.getMessage("cartToggleAll") || "Tout cocher / décocher";
+        const toggleStr = api.i18n.getMessage("cartToggleAll") || "Tout cocher / décocher";
         const toggleCheckbox = document.createElement('input');
         toggleCheckbox.type = 'checkbox';
         toggleCheckbox.checked = true;

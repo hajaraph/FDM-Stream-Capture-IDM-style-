@@ -17,43 +17,12 @@ const BROWSER_ENV = (() => {
     };
 })();
 
-// Unified API wrapper
+// Unified API wrapper - exposed globally as `api`
 const api = BROWSER_ENV.api;
-
-// Cross-browser message sending
-function sendMessageToTab(tabId, message) {
-    if (!api || !tabId) return Promise.resolve(null);
-    return api.tabs.sendMessage(tabId, message).catch(() => null);
-}
-
-// Cross-browser storage access
-function storageGet(keys) {
-    if (!api) return Promise.resolve({});
-    return api.storage.local.get(keys).catch(() => ({}));
-}
-
-function storageSet(data) {
-    if (!api) return Promise.resolve();
-    return api.storage.local.set(data).catch(() => {});
-}
-
-// Cross-browser notification helper
-function notifyUser(message, type = 'info') {
-    return api.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-        if (tabs && tabs[0]) {
-            return sendMessageToTab(tabs[0].id, {
-                type: 'FDM_NOTIFICATION',
-                message: message,
-                notificationType: type
-            });
-        }
-        return null;
-    }).catch(() => {});
-}
 
 // Feature detection helpers
 function supportsPartitionedCookies() {
-    return typeof api?.cookies?.getAll === 'function';
+    return BROWSER_ENV.isFirefox && typeof api?.cookies?.getAll === 'function';
 }
 
 function supportsNativeMessaging() {
@@ -64,17 +33,19 @@ function supportsWebRequest() {
     return typeof api?.webRequest?.onResponseStarted?.addListener === 'function';
 }
 
+function supportsWebNavigation() {
+    return typeof api?.webNavigation?.getAllFrames === 'function';
+}
+
 // Export for module usage
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         BROWSER_ENV,
         api,
-        sendMessageToTab,
-        storageGet,
-        storageSet,
-        notifyUser,
         supportsPartitionedCookies,
         supportsNativeMessaging,
-        supportsWebRequest
+        supportsWebRequest,
+        supportsWebNavigation
     };
 }
+

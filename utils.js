@@ -2,11 +2,8 @@
  * Utility Functions for FDM Helper Extension
  * Security helpers, notifications, cookie management, and common utilities.
  * 
- * Dependencies: constants.js, browser-compat.js
+ * Dependencies: constants.js, browser-compat.js (exposes `api` globally)
  */
-
-// Use cross-browser API if available
-const _api = typeof api !== 'undefined' ? api : (typeof browser !== 'undefined' ? browser : chrome);
 
 // --- SECURITY: SENSITIVE COOKIE PATTERNS TO FILTER ---
 const SENSITIVE_COOKIE_PATTERNS = [
@@ -79,16 +76,19 @@ async function getCookiesForUrls(urls) {
     for (const url of urls) {
         if (!url) continue;
         try {
-            const cookies1 = await _api.cookies.getAll({ url: url });
+            const cookies1 = await api.cookies.getAll({ url: url });
             cookies1.forEach(c => cookieMap.set(c.name, c.value));
         } catch (e) {
             // Silently ignore - some URLs may not have cookies
         }
-        try {
-            const cookies2 = await _api.cookies.getAll({ url: url, partitionKey: {} });
-            cookies2.forEach(c => cookieMap.set(c.name, c.value));
-        } catch (e) {
-            // Silently ignore - partitioned cookies may not be supported
+        // Partitioned cookies (CHIPS) - Firefox only, skip on Chrome
+        if (BROWSER_ENV.isFirefox) {
+            try {
+                const cookies2 = await api.cookies.getAll({ url: url, partitionKey: {} });
+                cookies2.forEach(c => cookieMap.set(c.name, c.value));
+            } catch (e) {
+                // Silently ignore - partitioned cookies may not be supported
+            }
         }
     }
 
@@ -122,9 +122,9 @@ function cleanYouTubeUrl(url) {
  */
 async function notifyUser(message, type = 'info') {
     try {
-        const [tab] = await _api.tabs.query({ active: true, currentWindow: true });
+        const [tab] = await api.tabs.query({ active: true, currentWindow: true });
         if (tab) {
-            _api.tabs.sendMessage(tab.id, {
+            api.tabs.sendMessage(tab.id, {
                 type: 'FDM_NOTIFICATION',
                 message: message,
                 notificationType: type
@@ -146,13 +146,13 @@ function createSafePort(host) {
     let errorHandled = false;
 
     try {
-        port = _api.runtime.connectNative(host);
+        port = api.runtime.connectNative(host);
 
         port.onDisconnect.addListener(() => {
             isConnected = false;
             fdmConnectionState = 'disconnected';
 
-            const lastError = _api.runtime.lastError;
+            const lastError = api.runtime.lastError;
             if (lastError && !errorHandled) {
                 errorHandled = true;
                 console.error('FDM Native Host disconnected:', lastError.message);
@@ -206,4 +206,12 @@ if (typeof module !== 'undefined' && module.exports) {
         createSafePort,
         fdmConnectionState
     };
+}
+
+// Make fdmConnectionState and createSafePort available globally
+if (typeof window === 'undefined') {
+    // Running in background script context
+    if (typeof globalThis !== 'undefined') {
+        globalThis.fdmConnectionState = fdmConnectionState;
+    }
 }

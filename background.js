@@ -3,6 +3,7 @@
  * Handles stream detection, download management, and native messaging.
  * 
  * Module dependencies (loaded before this script):
+ * - browser-compat.js: Cross-browser API wrapper (exposes `api`)
  * - constants.js: Magic numbers, timing, limits
  * - config.js: Detection rules and patterns
  * - utils.js: Security, notification, and cookie utilities
@@ -49,7 +50,7 @@ function trackDownload(url, filename, status = DOWNLOAD_STATUS.SENT) {
     }
 
     // Persist history
-    browser.storage.local.set({ downloadHistory: downloadHistory }).catch(() => {});
+    api.storage.local.set({ downloadHistory: downloadHistory }).catch(() => {});
 
     return entry;
 }
@@ -63,7 +64,7 @@ function updateDownloadStatus(id, newStatus) {
     const historyEntry = downloadHistory.find(e => e.id === id);
     if (historyEntry) {
         historyEntry.status = newStatus;
-        browser.storage.local.set({ downloadHistory: downloadHistory }).catch(() => {});
+        api.storage.local.set({ downloadHistory: downloadHistory }).catch(() => {});
     }
 }
 
@@ -79,7 +80,7 @@ let extensionSettings = {
 async function hydrate() {
     if (isHydrated) return;
     if (!hydratePromise) {
-        hydratePromise = browser.storage.local.get(['tabStreams', 'extensionSettings', 'catchLog']).then(data => {
+        hydratePromise = api.storage.local.get(['tabStreams', 'extensionSettings', 'catchLog']).then(data => {
             if (data.tabStreams) tabStreams = data.tabStreams;
             if (data.catchLog) catchLog = data.catchLog;
             if (data.extensionSettings) extensionSettings = { ...extensionSettings, ...data.extensionSettings };
@@ -89,7 +90,7 @@ async function hydrate() {
     await hydratePromise;
 }
 
-browser.storage.onChanged.addListener((changes, area) => {
+api.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.extensionSettings) {
         extensionSettings = { ...extensionSettings, ...changes.extensionSettings.newValue };
     }
@@ -104,7 +105,7 @@ function persist() {
 
     // Schedule new write after debounce delay
     persistTimeout = setTimeout(() => {
-        browser.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => {});
+        api.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => {});
         persistTimeout = null;
     }, TIMING.PERSIST_DEBOUNCE_MS);
 }
@@ -115,7 +116,7 @@ function persistNow() {
         clearTimeout(persistTimeout);
         persistTimeout = null;
     }
-    browser.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => {});
+    api.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => {});
 }
 
 // --- INTELLIGENT NAMING ENGINE ---
@@ -202,7 +203,7 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
         const safePort = createSafePort(FDM_HOST);
         if (!safePort) {
             // Fallback to browser download if connection failed
-            browser.downloads.download({ url: url });
+            api.downloads.download({ url: url });
             updateDownloadStatus(downloadEntry.id, DOWNLOAD_STATUS.FALLBACK);
             notifyUser('FDM: FDM non disponible, telechargement via navigateur.', 'warning');
             return;
@@ -254,7 +255,7 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
     } catch (e) {
         console.error('FDM sendToFDM error:', e);
         updateDownloadStatus(downloadEntry.id, DOWNLOAD_STATUS.FAILED);
-        browser.downloads.download({ url: url });
+        api.downloads.download({ url: url });
         notifyUser('FDM: Erreur, telechargement via navigateur.', 'warning');
     }
 }
@@ -284,7 +285,7 @@ async function sendBatchToFDM(batchItems) {
         const safePort = createSafePort(FDM_HOST);
         if (!safePort) {
             // Fallback for each item
-            validItems.forEach(item => browser.downloads.download({ url: item.url }));
+            validItems.forEach(item => api.downloads.download({ url: item.url }));
             batchIds.forEach(id => updateDownloadStatus(id, DOWNLOAD_STATUS.FALLBACK));
             notifyUser('FDM: FDM non disponible, telechargement via navigateur.', 'warning');
             return;
@@ -336,13 +337,13 @@ async function sendBatchToFDM(batchItems) {
     } catch (e) {
         console.error('FDM sendBatchToFDM error:', e);
         // Fallback for each
-        validItems.forEach(item => browser.downloads.download({ url: item.url }));
+        validItems.forEach(item => api.downloads.download({ url: item.url }));
         batchIds.forEach(id => updateDownloadStatus(id, DOWNLOAD_STATUS.FAILED));
         notifyUser('FDM: Erreur batch, telechargement via navigateur.', 'warning');
     }
 }
 
-browser.webRequest.onResponseStarted.addListener(
+api.webRequest.onResponseStarted.addListener(
     async (details) => {
         await hydrate();
         const { url, tabId, frameId, responseHeaders } = details;
@@ -396,7 +397,7 @@ browser.webRequest.onResponseStarted.addListener(
             if (!tabStreams[tabId]) tabStreams[tabId] = [];
 
             // Purge proactive des iframes morts AVANT d'ajouter le nouveau flux
-            browser.webNavigation.getAllFrames({ tabId: tabId }).then(frames => {
+            api.webNavigation.getAllFrames({ tabId: tabId }).then(frames => {
                 if (tabStreams[tabId] && frames) {
                     const aliveFrameIds = frames.map(f => f.frameId);
                     tabStreams[tabId] = tabStreams[tabId].filter(s =>
@@ -419,14 +420,14 @@ browser.webRequest.onResponseStarted.addListener(
                     addToCatchLog(streamEntry);
                     persist();
 
-                    browser.tabs.get(tabId).then(tab => {
+                    api.tabs.get(tabId).then(tab => {
                         const s = tabStreams[tabId].find(x => x.url === url);
                         if (s) {
                             s.title = tab.title || "Vidéo détectée";
 
                             // On tente de récupérer la véritable URL de l'iFrame !
                             if (frameId > 0) {
-                                browser.webNavigation.getFrame({ tabId: tabId, frameId: frameId }).then(frame => {
+                                api.webNavigation.getFrame({ tabId: tabId, frameId: frameId }).then(frame => {
                                     if (frame && frame.url && frame.url !== "about:blank") {
                                         s.pageUrl = frame.url;
                                         persist();
@@ -440,11 +441,11 @@ browser.webRequest.onResponseStarted.addListener(
                     }).catch(() => { });
 
                     const count = tabStreams[tabId].filter(s => s.type !== 'youtube').length;
-                    browser.action.setBadgeText({
+                    api.action.setBadgeText({
                         text: count > 0 ? count.toString() : "",
                         tabId: tabId
                     });
-                    browser.action.setBadgeBackgroundColor({ color: UI.BADGE_COLOR, tabId: tabId });
+                    api.action.setBadgeBackgroundColor({ color: UI.BADGE_COLOR, tabId: tabId });
                 }
             }).catch(() => {
                 // Fallback sécurité si l'onglet ferme entre temps
@@ -467,7 +468,7 @@ browser.webRequest.onResponseStarted.addListener(
     ["responseHeaders"]
 );
 
-browser.webNavigation.onBeforeNavigate.addListener(async (details) => {
+api.webNavigation.onBeforeNavigate.addListener(async (details) => {
     await hydrate();
     if (!tabStreams[details.tabId]) return;
 
@@ -481,23 +482,23 @@ browser.webNavigation.onBeforeNavigate.addListener(async (details) => {
     persist();
 
     const count = tabStreams[details.tabId].length;
-    browser.action.setBadgeText({
+    api.action.setBadgeText({
         text: count > 0 ? count.toString() : "",
         tabId: details.tabId
     });
 });
 
-browser.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
+api.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
     // Handling SPA (Single Page Application) navigation
     await hydrate();
     if (details.frameId === 0 && tabStreams[details.tabId]) {
         tabStreams[details.tabId] = [];
         persist();
-        browser.action.setBadgeText({ text: "", tabId: details.tabId });
+        api.action.setBadgeText({ text: "", tabId: details.tabId });
     }
 });
 
-browser.tabs.onRemoved.addListener(async (tabId) => {
+api.tabs.onRemoved.addListener(async (tabId) => {
     await hydrate();
     delete tabStreams[tabId];
     persist();
@@ -511,17 +512,19 @@ async function getCookiesForUrls(urls) {
         if (!url) continue;
         try {
             // Standard cookies
-            const cookies1 = await browser.cookies.getAll({ url: url });
+            const cookies1 = await api.cookies.getAll({ url: url });
             cookies1.forEach(c => cookieMap.set(c.name, c.value));
         } catch (e) {
             // Silently ignore - some URLs may not have cookies
         }
-        try {
-            // Partitioned cookies (CHIPS)
-            const cookies2 = await browser.cookies.getAll({ url: url, partitionKey: {} });
-            cookies2.forEach(c => cookieMap.set(c.name, c.value));
-        } catch (e) {
-            // Silently ignore - partitioned cookies may not be supported
+        // Partitioned cookies (CHIPS) - Firefox only, skip on Chrome
+        if (typeof api.cookies.getAll === 'function' && BROWSER_ENV.isFirefox) {
+            try {
+                const cookies2 = await api.cookies.getAll({ url: url, partitionKey: {} });
+                cookies2.forEach(c => cookieMap.set(c.name, c.value));
+            } catch (e) {
+                // Silently ignore - partitioned cookies may not be supported
+            }
         }
     }
 
@@ -545,7 +548,7 @@ function cleanYouTubeUrl(url) {
 }
 
 // --- MESSAGE HANDLERS ---
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+api.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "GET_STREAMS") {
         (async () => {
             await hydrate();
@@ -557,7 +560,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
             // Nettoyage magique des iframes morts pour éviter l'accumulation !
             try {
-                const frames = await browser.webNavigation.getAllFrames({ tabId: targetTabId });
+                const frames = await api.webNavigation.getAllFrames({ tabId: targetTabId });
                 if (tabStreams[targetTabId] && frames) {
                     const aliveFrameIds = frames.map(f => f.frameId);
 
@@ -568,7 +571,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     persist();
 
                     const count = tabStreams[targetTabId].filter(s => s.type !== 'youtube').length;
-                    browser.action.setBadgeText({ text: count > 0 ? count.toString() : "", tabId: targetTabId });
+                    api.action.setBadgeText({ text: count > 0 ? count.toString() : "", tabId: targetTabId });
                 }
             } catch (e) {
                 // ignore
@@ -621,11 +624,11 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 persist();
 
                 const count = tabStreams[tabId].filter(s => s.type !== 'youtube').length;
-                browser.action.setBadgeText({
+                api.action.setBadgeText({
                     text: count > 0 ? count.toString() : "",
                     tabId: tabId
                 });
-                browser.action.setBadgeBackgroundColor({ color: UI.BADGE_COLOR, tabId: tabId });
+                api.action.setBadgeBackgroundColor({ color: UI.BADGE_COLOR, tabId: tabId });
             }
         })();
     } else if (message.type === "SEND_TO_FDM") {
@@ -638,7 +641,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 // Use centralized cookie logic (DRY)
                 cookieStr = await getCookiesForUrls([finalReferer, finalUrl]);
             } else {
-                finalReferer = YOUTUBE_FIX.CLEAR_REFERER; // Fix 413 error on YouTube
+                finalReferer = YOUTUBE_FIX.CLEAR_REFERER;
                 finalUrl = cleanYouTubeUrl(message.url);
             }
             sendToFDM(finalUrl, message.filename, finalReferer, cookieStr, message.isYoutube);
@@ -732,7 +735,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     } else if (message.type === "CLEAR_DOWNLOAD_HISTORY") {
         downloadHistory = [];
-        browser.storage.local.set({ downloadHistory: [] }).catch(() => {});
+        api.storage.local.set({ downloadHistory: [] }).catch(() => {});
         sendResponse({ success: true });
     }
     return true;

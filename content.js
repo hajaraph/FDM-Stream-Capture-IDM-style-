@@ -91,12 +91,12 @@ let currentSettings = {
 
 async function syncSettings() {
     try {
-        const bgSettings = await browser.runtime.sendMessage({ type: "GET_SETTINGS" });
+        const bgSettings = await api.runtime.sendMessage({ type: "GET_SETTINGS" });
         if (bgSettings) currentSettings = bgSettings;
     } catch (e) { }
 }
 
-browser.storage.onChanged.addListener((changes, area) => {
+api.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.extensionSettings) {
         currentSettings = { ...currentSettings, ...changes.extensionSettings.newValue };
         if (!currentSettings.showButton && fdmButton) {
@@ -264,7 +264,7 @@ function createFdmButton() {
     svg1.appendChild(path); svg1.appendChild(polyline1); svg1.appendChild(line);
 
     const span = document.createElement('span');
-    span.textContent = browser.i18n.getMessage("contentBtnText") || "Télécharger la vidéo";
+    span.textContent = api.i18n.getMessage("contentBtnText") || "Télécharger la vidéo";
 
     const svg2 = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg2.setAttribute('width', '14'); svg2.setAttribute('height', '14');
@@ -347,14 +347,14 @@ async function populateDropdown() {
     dropdownMenu.appendChild(loadingDiv);
 
     // Fetch streams from background script
-    const streams = await browser.runtime.sendMessage({ type: "GET_STREAMS" }) || [];
+    const streams = await api.runtime.sendMessage({ type: "GET_STREAMS" }) || [];
 
     dropdownMenu.textContent = '';
 
     if (streams.length === 0) {
         const emptyDiv = document.createElement('div');
         emptyDiv.className = 'fdm-empty-msg';
-        emptyDiv.textContent = browser.i18n.getMessage("emptyMsg") || "Aucun flux détecté";
+        emptyDiv.textContent = api.i18n.getMessage("emptyMsg") || "Aucun flux détecté";
         dropdownMenu.appendChild(emptyDiv);
 
         // Direct video src fallback
@@ -417,7 +417,7 @@ function addDropdownItem(stream) {
         e.stopPropagation();
         const isYoutube = stream.type === 'youtube';
 
-        browser.runtime.sendMessage({
+        api.runtime.sendMessage({
             type: "SEND_TO_FDM",
             url: stream.url,
             filename: stream.title || fileName,
@@ -433,7 +433,7 @@ function addDropdownItem(stream) {
         successSpan.style.flex = '1';
         successSpan.style.textAlign = 'center';
         successSpan.style.fontWeight = '500';
-        successSpan.textContent = "[OK] " + (browser.i18n.getMessage("btnCopied") || "Envoyé");
+        successSpan.textContent = "[OK] " + (api.i18n.getMessage("btnCopied") || "Envoyé");
         item.appendChild(successSpan);
 
         setTimeout(() => {
@@ -466,7 +466,7 @@ function searchVideos() {
                 hasStreams = true; // Lien direct MP4 classique détecté
             } else {
                 try {
-                    const streams = await browser.runtime.sendMessage({ type: "GET_STREAMS" }) || [];
+                    const streams = await api.runtime.sendMessage({ type: "GET_STREAMS" }) || [];
                     if (streams.length > 0) hasStreams = true; // Des flux M3U8/DASH ont été interceptés
                 } catch (e) { }
             }
@@ -510,7 +510,7 @@ function extractHiddenStreams() {
                 let type = detectMediaType(url) || 'videos';
 
                 try {
-                    browser.runtime.sendMessage({
+                    api.runtime.sendMessage({
                         type: "ADD_HIDDEN_STREAM",
                         url: url,
                         streamType: type,
@@ -594,7 +594,7 @@ syncSettings().then(() => {
 });
 
 // --- LISTEN FOR NOTIFICATIONS FROM BACKGROUND ---
-browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+api.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'FDM_NOTIFICATION') {
         showFDMNotification(request.message, request.notificationType);
     }
@@ -602,7 +602,7 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // Listener for Mass Downloader feature with enhanced scanning
-browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+api.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "SCAN_PAGE") {
         const foundMedia = new Map();
 
@@ -691,7 +691,7 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     XMLHttpRequest.prototype.send = function() {
         if (this._fdmUrl && DETECTION_PATTERNS.networkMediaExtensions.test(this._fdmUrl) && !detectedUrls.has(this._fdmUrl)) {
             detectedUrls.add(this._fdmUrl);
-            browser.runtime.sendMessage({
+            api.runtime.sendMessage({
                 type: "ADD_HIDDEN_STREAM",
                 url: this._fdmUrl,
                 streamType: detectMediaType(this._fdmUrl) || 'videos',
@@ -708,7 +708,7 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         if (url && DETECTION_PATTERNS.networkMediaExtensions.test(url) && !detectedUrls.has(url)) {
             detectedUrls.add(url);
-            browser.runtime.sendMessage({
+            api.runtime.sendMessage({
                 type: "ADD_HIDDEN_STREAM",
                 url: url,
                 streamType: detectMediaType(url) || 'videos',

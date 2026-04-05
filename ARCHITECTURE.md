@@ -6,17 +6,24 @@ The extension is organized into focused modules for maintainability:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    manifest.json                        │
+│              manifest.json (Firefox)                    │
+│         manifest-chrome.json (Chrome/Edge)              │
 │         (Extension configuration & permissions)         │
 └─────────────────────────────────────────────────────────┘
                               │
         ┌─────────────────────┼─────────────────────┐
         │                     │                     │
 ┌───────▼────────┐   ┌───────▼───────┐   ┌────────▼────────┐
-│  constants.js  │   │   config.js   │   │    utils.js     │
-│ (Magic numbers)│   │(Detection rules│   │(Security, cookies│
-│                │   │ & patterns)    │   │ notifications)   │
+│  constants.js  │   │   config.js   │   │ browser-compat.js│
+│ (Magic numbers)│   │(Detection rules│   │ (Cross-browser   │
+│                │   │ & patterns)    │   │  API wrapper)    │
 └────────────────┘   └───────────────┘   └─────────────────┘
+                              │
+                     ┌────────▼────────┐
+                     │    utils.js     │
+                     │(Security, cookies│
+                     │ notifications)   │
+                     └─────────────────┘
                               │
                               ▼
                     ┌─────────────────┐
@@ -80,16 +87,20 @@ The extension is organized into focused modules for maintainability:
 
 The manifest.json defines strict loading order:
 
-**Background scripts:**
-1. constants.js (no dependencies)
-2. config.js (depends on constants.js)
-3. utils.js (depends on constants.js)
-4. background.js (depends on all above)
+**Background scripts (Firefox):**
+1. browser-compat.js (no dependencies, exposes `api` globally)
+2. constants.js (no dependencies)
+3. config.js (depends on constants.js)
+4. utils.js (depends on constants.js, browser-compat.js)
+5. background.js (depends on all above)
 
 **Content scripts:**
-1. constants.js
-2. config.js
-3. content.js (depends on all above)
+1. browser-compat.js
+2. constants.js
+3. config.js
+4. content.js (depends on all above)
+
+**Chrome/Edge:** Same order, but uses `manifest-chrome.json` with service worker instead of background scripts.
 
 ## Adding New Features
 
@@ -107,9 +118,14 @@ The manifest.json defines strict loading order:
 2. If it needs export, add to `module.exports` at bottom
 
 ### Adding a new message handler
-1. Edit `background.js` → add case to `browser.runtime.onMessage.addListener`
+1. Edit `background.js` → add case to `api.runtime.onMessage.addListener`
 2. If it involves downloads, use `trackDownload()` and `updateDownloadStatus()`
-3. If it needs user feedback, use `notifyUser()`
+3. If it needs user feedback, use `notifyUser()` (from utils.js, uses `api`)
+
+### Adding a browser-specific feature
+1. Use `BROWSER_ENV.isFirefox` or `BROWSER_ENV.isChrome` for conditional logic
+2. Use feature detection helpers: `supportsPartitionedCookies()`, `supportsWebNavigation()`
+3. Add browser-specific manifest settings in `manifest.json` (Firefox) or `manifest-chrome.json` (Chrome)
 
 ## Coding Standards
 
