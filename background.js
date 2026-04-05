@@ -177,8 +177,28 @@ browser.storage.onChanged.addListener((changes, area) => {
     }
 });
 
+// --- OPTIMIZED PERSIST WITH DEBOUNCE ---
+let persistTimeout = null;
+const PERSIST_DEBOUNCE_MS = 500; // Wait 500ms before writing to disk
+
 function persist() {
-    browser.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => { });
+    // Clear any pending write
+    if (persistTimeout) clearTimeout(persistTimeout);
+
+    // Schedule new write after debounce delay
+    persistTimeout = setTimeout(() => {
+        browser.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => {});
+        persistTimeout = null;
+    }, PERSIST_DEBOUNCE_MS);
+}
+
+// Force immediate persist (use sparingly)
+function persistNow() {
+    if (persistTimeout) {
+        clearTimeout(persistTimeout);
+        persistTimeout = null;
+    }
+    browser.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => {});
 }
 
 // --- INTELLIGENT NAMING ENGINE ---
@@ -550,6 +570,48 @@ browser.tabs.onRemoved.addListener(async (tabId) => {
     persist();
 });
 
+// --- COOKIE MANAGEMENT (DRY) ---
+async function getCookiesForUrls(urls) {
+    const cookieMap = new Map();
+
+    for (const url of urls) {
+        if (!url) continue;
+        try {
+            // Standard cookies
+            const cookies1 = await browser.cookies.getAll({ url: url });
+            cookies1.forEach(c => cookieMap.set(c.name, c.value));
+        } catch (e) {
+            // Silently ignore - some URLs may not have cookies
+        }
+        try {
+            // Partitioned cookies (CHIPS)
+            const cookies2 = await browser.cookies.getAll({ url: url, partitionKey: {} });
+            cookies2.forEach(c => cookieMap.set(c.name, c.value));
+        } catch (e) {
+            // Silently ignore - partitioned cookies may not be supported
+        }
+    }
+
+    return Array.from(cookieMap.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+// --- YOUTUBE URL CLEANER ---
+function cleanYouTubeUrl(url) {
+    try {
+        const u = new URL(url);
+        const v = u.searchParams.get('v');
+        if (v) {
+            return "https://www.youtube.com/watch?v=" + v;
+        } else if (u.hostname === 'youtu.be') {
+            return "https://www.youtube.com/watch?v=" + u.pathname.substring(1);
+        }
+        return url; // Return original if parsing fails
+    } catch (e) {
+        return url; // Return original on error
+    }
+}
+
+// --- MESSAGE HANDLERS ---
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "GET_STREAMS") {
         (async () => {
@@ -635,45 +697,16 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         })();
     } else if (message.type === "SEND_TO_FDM") {
         (async () => {
-            let cookieStr = "";
             let finalReferer = message.referer || message.url;
             let finalUrl = message.url;
+            let cookieStr = "";
 
             if (!message.isYoutube) {
-                try {
-                    const cookieMap = new Map();
-                    const getCookies = async (targetUrl) => {
-                        if (!targetUrl) return;
-                        try {
-                            let c1 = await browser.cookies.getAll({ url: targetUrl });
-                            c1.forEach(c => cookieMap.set(c.name, c.value));
-                        } catch (e) { }
-                        try {
-                            let c2 = await browser.cookies.getAll({ url: targetUrl, partitionKey: {} });
-                            c2.forEach(c => cookieMap.set(c.name, c.value));
-                        } catch (e) { }
-                    };
-
-                    await getCookies(finalReferer);
-                    await getCookies(finalUrl);
-
-                    // Formater en "nom=valeur; nom2=valeur2"
-                    cookieStr = Array.from(cookieMap.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
-                } catch (err) {
-                    console.error("Erreur lecture cookies:", err);
-                }
+                // Use extracted cookie logic (DRY)
+                cookieStr = await getCookiesForUrls([finalReferer, finalUrl]);
             } else {
                 finalReferer = ""; // Fix 413 error on YouTube
-                // Nettoyer l'URL de YouTube (enlever les paramètres de tracking géants)
-                try {
-                    let u = new URL(message.url);
-                    let v = u.searchParams.get('v');
-                    if (v) {
-                        finalUrl = "https://www.youtube.com/watch?v=" + v;
-                    } else if (u.hostname === 'youtu.be') {
-                        finalUrl = "https://www.youtube.com/watch?v=" + u.pathname.substring(1);
-                    }
-                } catch (e) { }
+                finalUrl = cleanYouTubeUrl(message.url);
             }
             sendToFDM(finalUrl, message.filename, finalReferer, cookieStr, message.isYoutube);
         })();
@@ -689,7 +722,6 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
             // If we have detected streams, pick the best one
             if (streams.length > 0) {
-                // Priority: Youtube > Manifests > Videos > Segments > Others
                 const bestStream =
                     streams.find(s => s.type === 'youtube') ||
                     streams.find(s => s.type === 'manifests') ||
@@ -708,28 +740,13 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
             let cookieStr = "";
             let finalReferer = referer;
+
             if (!isYoutube) {
-                try {
-                    const cookieMap = new Map();
-                    if (referer) {
-                        const pageCookies = await browser.cookies.getAll({ url: referer });
-                        pageCookies.forEach(c => cookieMap.set(c.name, c.value));
-                    }
-                    const streamCookies = await browser.cookies.getAll({ url: targetUrl });
-                    streamCookies.forEach(c => cookieMap.set(c.name, c.value));
-                    cookieStr = Array.from(cookieMap.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
-                } catch (err) { }
+                // Use extracted cookie logic (DRY)
+                cookieStr = await getCookiesForUrls([referer, targetUrl]);
             } else {
                 finalReferer = ""; // Fix 413 error on YouTube
-                try {
-                    let u = new URL(targetUrl);
-                    let v = u.searchParams.get('v');
-                    if (v) {
-                        targetUrl = "https://www.youtube.com/watch?v=" + v;
-                    } else if (u.hostname === 'youtu.be') {
-                        targetUrl = "https://www.youtube.com/watch?v=" + u.pathname.substring(1);
-                    }
-                } catch (e) { }
+                targetUrl = cleanYouTubeUrl(targetUrl);
             }
 
             sendToFDM(targetUrl, filename, finalReferer, cookieStr, isYoutube);

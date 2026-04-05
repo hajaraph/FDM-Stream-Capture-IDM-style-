@@ -533,17 +533,75 @@ function extractHiddenStreams() {
     });
 }
 
-// Initial check and periodic polling for dynamic content
+// Initial check and optimized detection with MutationObserver
 syncSettings().then(() => {
     addNotificationStyles();
+
+    // Initial scan after short delay
     setTimeout(() => {
         searchVideos();
         extractHiddenStreams();
-        setInterval(() => {
-            searchVideos();
-            extractHiddenStreams();
-        }, 2000);
     }, 1000);
+
+    // Use MutationObserver to detect dynamic content changes efficiently
+    let observerTimeout = null;
+    const observer = new MutationObserver((mutations) => {
+        // Debounce to avoid excessive scanning
+        if (observerTimeout) clearTimeout(observerTimeout);
+
+        observerTimeout = setTimeout(() => {
+            let shouldScan = false;
+
+            // Check if relevant changes occurred
+            for (const mutation of mutations) {
+                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                    for (const node of mutation.addedNodes) {
+                        // Check for new video elements or script changes
+                        if (node.nodeName === 'VIDEO' ||
+                            node.nodeName === 'SCRIPT' ||
+                            (node.querySelectorAll &&
+                             (node.querySelectorAll('video').length > 0 ||
+                              node.querySelectorAll('script').length > 0))) {
+                            shouldScan = true;
+                            break;
+                        }
+                    }
+                }
+                if (shouldScan) break;
+            }
+
+            // Only scan if relevant changes detected
+            if (shouldScan) {
+                searchVideos();
+                extractHiddenStreams();
+            }
+        }, 500); // Debounce 500ms
+    });
+
+    // Observe the entire document body for child list changes
+    const startObserver = () => {
+        if (document.body) {
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        } else {
+            // If body not ready, retry after DOMContentLoaded
+            document.addEventListener('DOMContentLoaded', startObserver);
+        }
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startObserver);
+    } else {
+        startObserver();
+    }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        observer.disconnect();
+        if (observerTimeout) clearTimeout(observerTimeout);
+    });
 });
 
 // --- LISTEN FOR NOTIFICATIONS FROM BACKGROUND ---
