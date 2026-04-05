@@ -18,7 +18,12 @@ const BROWSER_ENV = (() => {
 })();
 
 // Unified API wrapper - exposed globally as `api`
-const api = BROWSER_ENV.api;
+// Use 'var' to ensure it's a global variable accessible by other scripts
+var api = BROWSER_ENV.api;
+
+// Expose to global scope (covers Service Workers, Content Scripts, and Pages)
+globalThis.api = api;
+globalThis.BROWSER_ENV = BROWSER_ENV;
 
 // Feature detection helpers
 function supportsPartitionedCookies() {
@@ -48,4 +53,3 @@ if (typeof module !== 'undefined' && module.exports) {
         supportsWebNavigation
     };
 }
-

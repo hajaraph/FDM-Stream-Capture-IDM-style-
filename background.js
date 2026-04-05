@@ -1,13 +1,19 @@
 /**
  * FDM Helper - Background Script
  * Handles stream detection, download management, and native messaging.
- * 
+ *
  * Module dependencies (loaded before this script):
  * - browser-compat.js: Cross-browser API wrapper (exposes `api`)
  * - constants.js: Magic numbers, timing, limits
  * - config.js: Detection rules and patterns
  * - utils.js: Security, notification, and cookie utilities
  */
+
+// --- SAFETY: Ensure `api` is available in Background Script Scope ---
+if (typeof api === 'undefined') {
+    var api = typeof browser !== 'undefined' ? browser : chrome;
+    if (typeof globalThis !== 'undefined') globalThis.api = api;
+}
 
 // FDM Native Messaging Bridge
 const FDM_HOST = 'org.freedownloadmanager.fdm5.cnh';
