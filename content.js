@@ -392,9 +392,8 @@ function addDropdownItem(stream) {
     const fileName = stream.type === 'youtube' ? 'YouTube HD' : cleanTitle;
     const typeLabel = stream.type.toUpperCase();
 
-    // Extraire l'extension (ex: .mp4, .m3u8) ou deviner
-    let extMatch = stream.url.match(/\.(mp4|m3u8|ts|webm|flv|mkv)(?:\?|$)/i);
-    let extension = extMatch ? extMatch[1].toUpperCase() : '';
+    // Extract extension using centralized helper
+    let extension = extractExtension(stream.url)?.toUpperCase() || '';
     if (stream.type === 'youtube') extension = 'WEBM/MP4';
     else if (!extension && stream.type === 'manifests') extension = 'M3U8';
     else if (!extension) extension = 'MEDIA';
@@ -503,22 +502,19 @@ function extractHiddenStreams() {
     if (!currentSettings.scanHiddenStreams) return;
 
     const scripts = document.querySelectorAll('script');
-    // Recherche agressive d'URL terminant par .m3u8, .mp4, etc. dans le JS
-    const regex = /(https?:\/\/[^\s"'<>\\]+?\.(?:m3u8|mp4|webm|mkv|ts)(?:\?[^\s"'<>\\]*)?)/ig;
 
     scripts.forEach(script => {
         if (!script.textContent) return;
         let text = script.textContent.replace(/\\\//g, '/'); // Unescape JSON slashes
 
         let match;
-        while ((match = regex.exec(text)) !== null) {
+        while ((match = DETECTION_PATTERNS.hiddenStreamRegex.exec(text)) !== null) {
             const url = match[1];
             if (!knownHiddenUrls.has(url)) {
                 knownHiddenUrls.add(url);
 
-                let type = 'videos';
-                if (url.toLowerCase().includes('.m3u8')) type = 'manifests';
-                else if (url.toLowerCase().includes('.ts')) type = 'segments';
+                // Use centralized detection helper
+                let type = detectMediaType(url) || 'videos';
 
                 try {
                     browser.runtime.sendMessage({
@@ -612,7 +608,7 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
 });
 
-// Listener for Mass Downloader feature
+// Listener for Mass Downloader feature with enhanced scanning
 browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "SCAN_PAGE") {
         const foundMedia = new Map();
@@ -634,10 +630,9 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
         };
 
         // Scan Anchors
-        const extensions = /\.(mp4|mkv|avi|webm|m3u8|ts|mp3|flac|wav|ogg|jpg|jpeg|png|gif|pdf|zip|rar|7z|iso)(?:\?|$)/i;
         document.querySelectorAll('a[href]').forEach(a => {
-            if (extensions.test(a.href)) {
-                let extMatch = a.href.match(extensions);
+            if (DETECTION_PATTERNS.pageScanExtensions.test(a.href)) {
+                let extMatch = a.href.match(DETECTION_PATTERNS.pageScanExtensions);
                 let typeText = extMatch ? extMatch[1].toUpperCase() : 'FILE';
                 addMedia(a.href, a.textContent.trim() || typeText + " File", typeText);
             }
@@ -654,10 +649,83 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (s.src && !s.src.startsWith('blob:')) addMedia(s.src, document.title + ' (Media ' + (i + 1) + ')', 'MEDIA');
         });
 
+        // Scan data attributes and inline styles for media URLs
+        document.querySelectorAll('[style*="url("]').forEach(el => {
+            const style = el.getAttribute('style');
+            const urlMatch = style.match(/url\(['"]?([^'")]+)/i);
+            if (urlMatch) {
+                const url = urlMatch[1];
+                if (DETECTION_PATTERNS.pageScanExtensions.test(url)) {
+                    addMedia(url, 'Background Media', 'BACKGROUND');
+                }
+            }
+        });
+
+        // Scan for media in JSON data embedded in page
+        document.querySelectorAll('script[type="application/json"], script[type="application/ld+json"]').forEach(script => {
+            try {
+                const data = JSON.parse(script.textContent);
+                const extractUrls = (obj, depth = 0) => {
+                    if (depth > 5 || !obj) return; // Limit recursion
+                    if (typeof obj === 'string' && DETECTION_PATTERNS.pageScanExtensions.test(obj)) {
+                        addMedia(obj, 'JSON Embedded', 'EMBEDDED');
+                    } else if (typeof obj === 'object') {
+                        Object.values(obj).forEach(v => extractUrls(v, depth + 1));
+                    }
+                };
+                extractUrls(data);
+            } catch (e) { }
+        });
+
         sendResponse({ items: Array.from(foundMedia.values()) });
     }
     return true;
 });
+
+// --- XHR/FETCH INTERCEPTOR FOR DYNAMIC MEDIA DETECTION ---
+(function interceptNetworkRequests() {
+    const detectedUrls = new Set();
+
+    // Intercept XMLHttpRequest
+    const originalXHROpen = XMLHttpRequest.prototype.open;
+    const originalXHRSend = XMLHttpRequest.prototype.send;
+
+    XMLHttpRequest.prototype.open = function(method, url) {
+        this._fdmUrl = url;
+        return originalXHROpen.apply(this, arguments);
+    };
+
+    XMLHttpRequest.prototype.send = function() {
+        if (this._fdmUrl && DETECTION_PATTERNS.networkMediaExtensions.test(this._fdmUrl) && !detectedUrls.has(this._fdmUrl)) {
+            detectedUrls.add(this._fdmUrl);
+            browser.runtime.sendMessage({
+                type: "ADD_HIDDEN_STREAM",
+                url: this._fdmUrl,
+                streamType: detectMediaType(this._fdmUrl) || 'videos',
+                pageUrl: window.location.href
+            }).catch(() => {});
+        }
+        return originalXHRSend.apply(this, arguments);
+    };
+
+    // Intercept Fetch API
+    const originalFetch = window.fetch;
+    window.fetch = async function(...args) {
+        const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
+
+        if (url && DETECTION_PATTERNS.networkMediaExtensions.test(url) && !detectedUrls.has(url)) {
+            detectedUrls.add(url);
+            browser.runtime.sendMessage({
+                type: "ADD_HIDDEN_STREAM",
+                url: url,
+                streamType: detectMediaType(url) || 'videos',
+                pageUrl: window.location.href
+            }).catch(() => {});
+        }
+
+        return originalFetch.apply(this, args);
+    };
+})();
 
 window.addEventListener('scroll', () => { if (fdmButton && dropdownMenu && dropdownMenu.style.display !== 'flex') { fdmButton.style.display = 'none'; } });
 window.addEventListener('resize', () => { if (fdmButton && dropdownMenu && dropdownMenu.style.display !== 'flex') { fdmButton.style.display = 'none'; } });

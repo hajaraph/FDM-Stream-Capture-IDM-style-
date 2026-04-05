@@ -124,30 +124,61 @@ function createSafePort() {
     };
 }
 
-// --- REGLES DE DETECTION ---
-const DETECTION_RULES = {
-    extensions: {
-        manifests: ['.m3u8', '.mpd', '.f4m', '.m3u'],
-        videos: ['.mp4', '.webm', '.mkv', '.avi', '.mov', '.flv'],
-        segments: ['.ts', '.m4s', '.aac', '.m4a'],
-        subtitles: ['.vtt', '.srt']
-    },
-    contentTypes: {
-        'application/vnd.apple.mpegurl': 'manifests',
-        'application/x-mpegurl': 'manifests',
-        'application/dash+xml': 'manifests',
-        'video/mp4': 'videos',
-        'video/webm': 'videos',
-        'video/mp2t': 'segments',
-        'text/vtt': 'subtitles',
-        'application/x-subrip': 'subtitles'
-    }
-};
+// Detection rules are now loaded from config.js (centralized)
 
 let tabStreams = {};
 let catchLog = [];
 let isHydrated = false;
 let hydratePromise = null;
+
+// --- DOWNLOAD TRACKING ---
+let downloadQueue = []; // Track sent downloads
+let downloadHistory = []; // Persistent history
+
+const DOWNLOAD_STATUS = {
+    PENDING: 'pending',
+    SENT: 'sent_to_fdm',
+    FALLBACK: 'fallback_browser',
+    COMPLETED: 'completed',
+    FAILED: 'failed'
+};
+
+function trackDownload(url, filename, status = DOWNLOAD_STATUS.SENT) {
+    const entry = {
+        id: Date.now(),
+        url: url,
+        filename: filename,
+        status: status,
+        timestamp: new Date().toISOString(),
+        tabId: null
+    };
+
+    downloadQueue.push(entry);
+    downloadHistory.unshift(entry);
+
+    // Keep history manageable
+    if (downloadHistory.length > 500) {
+        downloadHistory = downloadHistory.slice(0, 500);
+    }
+
+    // Persist history
+    browser.storage.local.set({ downloadHistory: downloadHistory }).catch(() => {});
+
+    return entry;
+}
+
+function updateDownloadStatus(id, newStatus) {
+    const queueEntry = downloadQueue.find(e => e.id === id);
+    if (queueEntry) {
+        queueEntry.status = newStatus;
+    }
+
+    const historyEntry = downloadHistory.find(e => e.id === id);
+    if (historyEntry) {
+        historyEntry.status = newStatus;
+        browser.storage.local.set({ downloadHistory: downloadHistory }).catch(() => {});
+    }
+}
 
 let extensionSettings = {
     showButton: true,
@@ -277,11 +308,17 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
     // --- SECURITY: Filter sensitive cookies ---
     const safeCookies = filterSensitiveCookies(cookies);
 
+    // --- TRACK DOWNLOAD ---
+    const cleanName = extensionSettings.smartNaming ? getSmartFileName(filename, url, isYoutube) : filename;
+    const downloadEntry = trackDownload(url, cleanName, DOWNLOAD_STATUS.PENDING);
+
     try {
         const safePort = createSafePort();
         if (!safePort) {
             // Fallback to browser download if connection failed
             browser.downloads.download({ url: url });
+            updateDownloadStatus(downloadEntry.id, DOWNLOAD_STATUS.FALLBACK);
+            notifyUser('FDM: FDM non disponible, telechargement via navigateur.', 'warning');
             return;
         }
 
@@ -293,8 +330,6 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
         });
 
         // --- SMART NAMING (IDM STYLE) ---
-        let cleanName = extensionSettings.smartNaming ? getSmartFileName(filename, url, isYoutube) : filename;
-
         let downloadObj = {
             url: url,
             filename: cleanName,
@@ -326,11 +361,13 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
 
         setTimeout(() => safePort.disconnect(), 1000);
 
-        // --- SUCCESS NOTIFICATION ---
+        // --- UPDATE STATUS & NOTIFICATION ---
+        updateDownloadStatus(downloadEntry.id, DOWNLOAD_STATUS.SENT);
         notifyUser('FDM: Telechargement envoye avec succes.', 'success');
 
     } catch (e) {
         console.error('FDM sendToFDM error:', e);
+        updateDownloadStatus(downloadEntry.id, DOWNLOAD_STATUS.FAILED);
         browser.downloads.download({ url: url });
         notifyUser('FDM: Erreur, telechargement via navigateur.', 'warning');
     }
@@ -351,11 +388,19 @@ async function sendBatchToFDM(batchItems) {
         return;
     }
 
+    // --- TRACK BATCH DOWNLOAD ---
+    const batchIds = validItems.map(item => {
+        const cleanName = extensionSettings.smartNaming ? getSmartFileName(item.filename || item.title || "Stream_Catcher_Item", item.url, false) : (item.filename || item.title);
+        return trackDownload(item.url, cleanName, DOWNLOAD_STATUS.PENDING).id;
+    });
+
     try {
         const safePort = createSafePort();
         if (!safePort) {
             // Fallback for each item
             validItems.forEach(item => browser.downloads.download({ url: item.url }));
+            batchIds.forEach(id => updateDownloadStatus(id, DOWNLOAD_STATUS.FALLBACK));
+            notifyUser('FDM: FDM non disponible, telechargement via navigateur.', 'warning');
             return;
         }
 
@@ -398,13 +443,15 @@ async function sendBatchToFDM(batchItems) {
 
         setTimeout(() => safePort.disconnect(), 1000);
 
-        // --- SUCCESS NOTIFICATION ---
+        // --- UPDATE STATUS & SUCCESS NOTIFICATION ---
+        batchIds.forEach(id => updateDownloadStatus(id, DOWNLOAD_STATUS.SENT));
         notifyUser(`FDM: ${downloadObjs.length} fichier(s) envoye(s) avec succes.`, 'success');
 
     } catch (e) {
         console.error('FDM sendBatchToFDM error:', e);
         // Fallback for each
         validItems.forEach(item => browser.downloads.download({ url: item.url }));
+        batchIds.forEach(id => updateDownloadStatus(id, DOWNLOAD_STATUS.FAILED));
         notifyUser('FDM: Erreur batch, telechargement via navigateur.', 'warning');
     }
 }
@@ -767,6 +814,39 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === "CLEAR_CATCH_LOG") {
         catchLog = [];
         persist();
+        sendResponse({ success: true });
+    } else if (message.type === "GET_DOWNLOAD_HISTORY") {
+        (async () => {
+            sendResponse(downloadHistory);
+        })();
+        return true;
+    } else if (message.type === "GET_DOWNLOAD_STATS") {
+        (async () => {
+            const totalDownloads = downloadHistory.length;
+            const sentToFdm = downloadHistory.filter(d => d.status === DOWNLOAD_STATUS.SENT).length;
+            const fallbackBrowser = downloadHistory.filter(d => d.status === DOWNLOAD_STATUS.FALLBACK).length;
+            const failed = downloadHistory.filter(d => d.status === DOWNLOAD_STATUS.FAILED).length;
+
+            // Stats by type
+            const byType = {};
+            downloadHistory.forEach(d => {
+                const ext = d.filename.split('.').pop()?.toLowerCase() || 'unknown';
+                byType[ext] = (byType[ext] || 0) + 1;
+            });
+
+            sendResponse({
+                total: totalDownloads,
+                sentToFdm: sentToFdm,
+                fallbackBrowser: fallbackBrowser,
+                failed: failed,
+                byType: byType,
+                lastDownload: downloadHistory.length > 0 ? downloadHistory[0].timestamp : null
+            });
+        })();
+        return true;
+    } else if (message.type === "CLEAR_DOWNLOAD_HISTORY") {
+        downloadHistory = [];
+        browser.storage.local.set({ downloadHistory: [] }).catch(() => {});
         sendResponse({ success: true });
     }
     return true;
