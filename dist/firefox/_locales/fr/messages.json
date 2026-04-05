@@ -1,0 +1,121 @@
+{
+    "extensionName": {
+        "message": "FDM Stream Capture (Style IDM)"
+    },
+    "extensionDescription": {
+        "message": "Détecte les flux vidéo (MP4, M3U8, DASH) et permet de les télécharger avec FDM."
+    },
+    "popupTitle": {
+        "message": "FDM Stream Capture : Flux Détectés"
+    },
+    "emptyMsg": {
+        "message": "Aucun flux détecté. Essayez de lancer la lecture de la vidéo."
+    },
+    "contentBtnText": {
+        "message": "Télécharger cette vidéo"
+    },
+    "contentAlert": {
+        "message": "Utilisez l'icône FDM dans votre barre d'outils pour voir tous les flux détectés (y compris HLS/M3U8)."
+    },
+    "groupYoutube": {
+        "message": "Télécharger depuis YouTube"
+    },
+    "groupManifests": {
+        "message": "Listes de lecture (HLS/DASH)"
+    },
+    "groupVideos": {
+        "message": "Vidéos (MP4/WebM)"
+    },
+    "groupSegments": {
+        "message": "Segments (TS)"
+    },
+    "groupOthers": {
+        "message": "Autres flux"
+    },
+    "btnDownload": {
+        "message": "Télécharger (FDM)"
+    },
+    "btnCopy": {
+        "message": "Copier"
+    },
+    "btnCopied": {
+        "message": "Copié !"
+    },
+    "errorMsg": {
+        "message": "Erreur : $MESSAGE$",
+        "placeholders": {
+            "MESSAGE": {
+                "content": "$1"
+            }
+        }
+    },
+    "optionsTitle": {
+        "message": "Paramètres Profil"
+    },
+    "optShowButtonTitle": {
+        "message": "Bouton de téléchargement sur les vidéos"
+    },
+    "optShowButtonDesc": {
+        "message": "Affiche un élégant bouton de téléchargement flottant au survol d'un lecteur vidéo pris en charge (HTML5)."
+    },
+    "optMinSizeTitle": {
+        "message": "Filtre Anti-Bruit (Taille Minimale)"
+    },
+    "optMinSizeDesc": {
+        "message": "Ignore les petites vidéos (ex: pubs, effets sonores, icônes) pour ne capturer que les vrais médias. Évite la pollution de la liste !"
+    },
+    "optMinSizeLabel": {
+        "message": "Taille minimale (Mo) :"
+    },
+    "optSubtitlesTitle": {
+        "message": "Détecter les sous-titres (.vtt, .srt)"
+    },
+    "optSubtitlesDesc": {
+        "message": "Détecte et ajoute les fichiers de sous-titres liés à la vidéo dans la liste des flux capturés pour pouvoir les sauver séparément."
+    },
+    "optHiddenStreamsTitle": {
+        "message": "Scan profond des flux cachés (JS Sniffer)"
+    },
+    "optHiddenStreamsDesc": {
+        "message": "Analyse dynamiquement le code source et les scripts de la page courante pour extraire les URL cachées (.m3u8, .mp4, etc.) invisibles aux méthodes classiques."
+    },
+    "optSmartNamingTitle": {
+        "message": "Nommage Intelligent (Style IDM)"
+    },
+    "optSmartNamingDesc": {
+        "message": "Nettoie automatiquement les titres des vidéos (supprime 'Watch Online', les noms de sites, etc.) pour des fichiers bien nommés dans FDM."
+    },
+    "optSaved": {
+        "message": "Paramètres enregistrés"
+    },
+    "btnScanPage": {
+        "message": "Scanner la page"
+    },
+    "strCart": {
+        "message": "Panier"
+    },
+    "strDlSelected": {
+        "message": "Télécharger sélection"
+    },
+    "btnClearCart": {
+        "message": "Vider"
+    },
+    "cartEmptyMsg": {
+        "message": "Aucun fichier trouvé sur la page."
+    },
+    "cartSelectMsg": {
+        "message": "Sélectionnez les fichiers"
+    },
+    "cartToggleAll": {
+        "message": "Tout cocher / décocher"
+    },
+    "cartSentMsg": {
+        "message": "Fichiers envoyés !"
+    },
+    "scanInProgress": {
+        "message": "Recherche en cours..."
+    },
+    "scanError": {
+        "message": "Erreur (Rechargez la page)"
+    }
+}

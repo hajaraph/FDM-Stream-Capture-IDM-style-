@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+        :root {
+            --bg: #fafafa;
+            --surface: #ffffff;
+            --border: #eaeaea;
+            --text: #171717;
+            --text-secondary: #737373;
+            --text-muted: #a3a3a3;
+            --line: #e5e5e5;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        body {
+            width: 360px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 200px;
+            max-height: 500px;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand { display: flex; align-items: center; gap: 10px; }
+
+        .logo {
+            width: 28px; height: 28px;
+            background: #171717;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .logo svg { width: 15px; height: 15px; color: white; }
+
+        #header-title { font-size: 14px; font-weight: 600; letter-spacing: -0.2px; }
+
+        .icon-btn {
+            width: 28px; height: 28px;
+            display: flex; align-items: center; justify-content: center;
+            background: none; border: none; cursor: pointer;
+            color: var(--text-muted); border-radius: 6px; transition: all 0.15s ease;
+        }
+
+        .icon-btn:hover { background: var(--bg); color: var(--text); }
+        .icon-btn svg { width: 14px; height: 14px; }
+
+        #stream-list {
+            padding: 16px 14px 8px 14px;
+            max-height: 340px;
+            overflow-y: auto;
+        }
+
+        #stream-list::-webkit-scrollbar { width: 4px; }
+        #stream-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+        .tl-section { position: relative; margin-bottom: 12px; }
+
+        .tl-label {
+            font-size: 10px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.6px; color: var(--text-muted);
+            padding: 0 12px 8px 32px;
+        }
+
+        .tl-line {
+            position: absolute; left: 18px; top: 28px; bottom: 0;
+            width: 2px; background: var(--line); border-radius: 1px;
+        }
+
+        .tl-section:last-child .tl-line { display: none; }
+
+        .tl-item {
+            position: relative; padding: 0 0 12px 40px;
+        }
+
+        .tl-dot {
+            position: absolute; left: 12px; top: 4px;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: var(--surface); border: 2.5px solid var(--text-muted); z-index: 1;
+        }
+
+        .tl-item[data-type="youtube"] .tl-dot { border-color: #ef4444; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1); }
+        .tl-item[data-type="manifests"] .tl-dot { border-color: #10b981; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1); }
+        .tl-item[data-type="videos"] .tl-dot { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+        .tl-item[data-type="segments"] .tl-dot { border-color: #f59e0b; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.1); }
+
+        .tl-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 10px 12px;
+            transition: all 0.2s var(--ease); box-shadow: var(--shadow-sm);
+        }
+
+        .tl-card:hover { border-color: var(--line); box-shadow: var(--shadow-md); transform: translateX(2px); }
+
+        .tl-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+
+        .tl-type { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+        .tl-time { font-size: 9px; color: var(--text-muted); }
+
+        .tl-title {
+            font-size: 12px; font-weight: 500; color: var(--text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
+        }
+
+        .tl-url {
+            font-size: 9px; color: var(--text-muted);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .tl-actions { display: flex; gap: 4px; margin-top: 8px; }
+
+        .tl-btn {
+            flex: 1; padding: 6px 8px; border-radius: 6px; border: none;
+            font-size: 10px; font-weight: 500; cursor: pointer;
+            transition: all 0.15s ease; font-family: inherit;
+            display: flex; align-items: center; justify-content: center; gap: 3px;
+        }
+
+        .tl-btn svg { width: 11px; height: 11px; }
+
+        .tl-btn-dl { background: #171717; color: white; }
+        .tl-btn-dl:hover { background: #333; }
+
+        .tl-btn-cp { background: var(--bg); color: var(--text-secondary); }
+        .tl-btn-cp:hover { background: var(--border); color: var(--text); }
+
+        .footer {
+            padding: 10px 14px; border-top: 1px solid var(--border);
+            background: var(--surface); display: flex; gap: 5px;
+        }
+
+        .btn-footer {
+            flex: 1; padding: 8px 10px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--surface);
+            color: var(--text-secondary); font-size: 10px; font-weight: 500;
+            cursor: pointer; transition: all 0.15s ease; font-family: inherit; text-align: center;
+        }
+
+        .btn-footer:hover { border-color: var(--text-muted); }
+        .btn-footer.solid { background: #171717; color: white; border-color: #171717; }
+        .btn-footer.solid:hover { background: #333; }
+
+        .empty { text-align: center; padding: 44px 20px; color: var(--text-muted); }
+        .empty svg { width: 36px; height: 36px; margin-bottom: 10px; opacity: 0.25; }
+        .empty p { font-size: 12px; line-height: 1.5; }
+
+        /* Checkbox Wrapper Styling (Robust for Firefox) */
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+
+        .cb-batch {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .cb-visual {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #d4d4d4;
+            border-radius: 5px;
+            background-color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .cb-batch:checked + .cb-visual {
+            background-color: #171717;
+            border-color: #171717;
+        }
+
+        .cb-batch:checked + .cb-visual::after {
+            content: "✓";
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+        .tl-item { animation: fadeIn 0.3s var(--ease); }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <div class="logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+            </div>
+            <span id="header-title">FDM Stream Capture</span>
+        </div>
+        <button id="open-settings" class="icon-btn" title="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+        </button>
+    </header>
+
+    <div id="stream-list"></div>
+
+    <div class="footer">
+        <button id="btn-scan-page" class="btn-footer">Scanner</button>
+        <button id="btn-show-cart" class="btn-footer solid">Panier (0)</button>
+        <button id="btn-dl-selected" class="btn-footer solid" style="display:none;">Télécharger (0)</button>
+        <button id="btn-clear-cart" class="btn-footer solid" style="display:none;">Vider</button>
+    </div>
+
+    <script src="browser-compat.js"></script>
+    <script src="constants.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>
