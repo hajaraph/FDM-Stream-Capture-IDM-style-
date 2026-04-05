@@ -13,10 +13,10 @@ async function loadStreams() {
 
         const streams = await api.runtime.sendMessage({ type: "GET_STREAMS", tabId: tabId, tabUrl: currentUrl, tabTitle: currentTab.title }) || [];
 
-        streamList.innerHTML = '';
+        streamList.replaceChildren();
 
         if (streams.length === 0) {
-            streamList.innerHTML = ''; // Clear list first safely
+            streamList.replaceChildren(); // Clear list first safely
             const emptyDiv = document.createElement('div');
             emptyDiv.className = 'empty';
             
@@ -204,9 +204,23 @@ function attachEvents() {
         btn.onclick = (e) => {
             const target = e.target.closest('.tl-btn-cp');
             navigator.clipboard.writeText(target.getAttribute('data-url')).then(() => {
-                target.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"></path></svg>`;
+                // Show Checkmark (Secure)
+                target.textContent = '';
+                const checkSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                checkSvg.setAttribute("viewBox", "0 0 24 24"); checkSvg.setAttribute("fill", "none"); checkSvg.setAttribute("stroke", "currentColor"); checkSvg.setAttribute("stroke-width", "2.5");
+                const checkPath = document.createElementNS("http://www.w3.org/2000/svg", "path"); checkPath.setAttribute("d", "M20 6L9 17l-5-5");
+                checkSvg.appendChild(checkPath);
+                target.appendChild(checkSvg);
+
                 setTimeout(() => {
-                    target.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+                    // Restore Copy Icon (Secure)
+                    target.textContent = '';
+                    const cpSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    cpSvg.setAttribute("viewBox", "0 0 24 24"); cpSvg.setAttribute("fill", "none"); cpSvg.setAttribute("stroke", "currentColor"); cpSvg.setAttribute("stroke-width", "2.5");
+                    const cpRect = document.createElementNS("http://www.w3.org/2000/svg", "rect"); cpRect.setAttribute("x", "9"); cpRect.setAttribute("y", "9"); cpRect.setAttribute("width", "13"); cpRect.setAttribute("height", "13"); cpRect.setAttribute("rx", "2");
+                    const cpPath = document.createElementNS("http://www.w3.org/2000/svg", "path"); cpPath.setAttribute("d", "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1");
+                    cpSvg.appendChild(cpRect); cpSvg.appendChild(cpPath);
+                    target.appendChild(cpSvg);
                 }, 1500);
             });
         };
@@ -296,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderBatchList(items, isCart = false) {
         const streamList = document.getElementById('stream-list');
-        streamList.innerHTML = '';
+        streamList.replaceChildren(); // Secure replacement for innerHTML = ''
         if (btnScan) btnScan.style.display = 'none';
         if (btnShowCart) btnShowCart.style.display = 'none';
         if (btnDlSelected) btnDlSelected.style.display = 'block';
