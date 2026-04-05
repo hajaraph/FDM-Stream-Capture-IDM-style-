@@ -1,131 +1,18 @@
+/**
+ * FDM Helper - Background Script
+ * Handles stream detection, download management, and native messaging.
+ * 
+ * Module dependencies (loaded before this script):
+ * - constants.js: Magic numbers, timing, limits
+ * - config.js: Detection rules and patterns
+ * - utils.js: Security, notification, and cookie utilities
+ */
+
 // FDM Native Messaging Bridge
 const FDM_HOST = 'org.freedownloadmanager.fdm5.cnh';
 let nextTaskId = 1;
 
-// --- SECURITY: SENSITIVE COOKIE PATTERNS TO FILTER ---
-const SENSITIVE_COOKIE_PATTERNS = [
-    'token', 'auth', 'session', 'csrf', 'xsrf', 'secret',
-    'password', 'api_key', 'apikey', 'access_token', 'refresh_token',
-    'jwt', 'bearer', 'oauth', 'sid', 'phpsessid', 'connect.sid'
-];
-
-// --- SECURITY: URL VALIDATION ---
-function isValidDownloadUrl(url) {
-    if (!url || typeof url !== 'string') return false;
-
-    try {
-        const parsed = new URL(url);
-
-        // Only allow http/https protocols
-        if (!['http:', 'https:'].includes(parsed.protocol)) return false;
-
-        // Block localhost/loopback (potential SSRF)
-        const hostname = parsed.hostname.toLowerCase();
-        if (BLOCKED_HOSTS.includes(hostname)) return false;
-
-        // Block data: and javascript: URLs
-        if (url.startsWith('data:') || url.startsWith('javascript:')) return false;
-
-        // Must have a valid hostname
-        if (!hostname || hostname.length < LIMITS.MIN_HOSTNAME_LENGTH) return false;
-
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-// --- SECURITY: COOKIE FILTERING ---
-function filterSensitiveCookies(cookieString) {
-    if (!cookieString || typeof cookieString !== 'string') return '';
-
-    const cookies = cookieString.split(';').map(c => c.trim());
-    const filtered = cookies.filter(cookie => {
-        const cookieName = cookie.split('=')[0].toLowerCase();
-        const isSensitive = SENSITIVE_COOKIE_PATTERNS.some(pattern =>
-            cookieName.includes(pattern)
-        );
-        return !isSensitive;
-    });
-
-    return filtered.join('; ');
-}
-
-// --- NATIVE MESSAGING ERROR HANDLING ---
-let fdmConnectionState = 'unknown'; // 'connected', 'disconnected', 'unknown'
-
-async function notifyUser(message, type = 'info') {
-    // Send notification to active tab's content script
-    try {
-        const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-        if (tab) {
-            browser.tabs.sendMessage(tab.id, {
-                type: 'FDM_NOTIFICATION',
-                message: message,
-                notificationType: type
-            }).catch(() => {}); // Ignore if content script not available
-        }
-    } catch (e) {
-        console.warn('Failed to send notification to tab:', e);
-    }
-}
-
-function createSafePort() {
-    let port = null;
-    let isConnected = false;
-    let errorHandled = false;
-
-    try {
-        port = browser.runtime.connectNative(FDM_HOST);
-
-        port.onDisconnect.addListener(() => {
-            isConnected = false;
-            fdmConnectionState = 'disconnected';
-
-            const lastError = browser.runtime.lastError;
-            if (lastError && !errorHandled) {
-                errorHandled = true;
-                console.error('FDM Native Host disconnected:', lastError.message);
-                notifyUser('FDM: Impossible de se connecter a FDM. Verifiez que FDM est installe et en execution.', 'error');
-            }
-        });
-
-        isConnected = true;
-        fdmConnectionState = 'connected';
-    } catch (e) {
-        console.error('Failed to connect to FDM Native Host:', e);
-        fdmConnectionState = 'disconnected';
-        notifyUser('FDM: Echec de connexion. Verifiez que FDM est installe.', 'error');
-        return null;
-    }
-
-    return {
-        port,
-        postMessage: (data) => {
-            if (port && isConnected) {
-                try {
-                    port.postMessage(data);
-                    return true;
-                } catch (e) {
-                    console.error('FDM postMessage failed:', e);
-                    notifyUser('FDM: Erreur lors de l\'envoi du telechargement.', 'error');
-                    return false;
-                }
-            }
-            return false;
-        },
-        disconnect: () => {
-            if (port) {
-                try {
-                    port.disconnect();
-                } catch (e) {}
-            }
-        }
-    };
-}
-
-// Detection rules are now loaded from config.js (centralized)
-
+// Stream tracking state
 let tabStreams = {};
 let catchLog = [];
 let isHydrated = false;
@@ -312,7 +199,7 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
     const downloadEntry = trackDownload(url, cleanName, DOWNLOAD_STATUS.PENDING);
 
     try {
-        const safePort = createSafePort();
+        const safePort = createSafePort(FDM_HOST);
         if (!safePort) {
             // Fallback to browser download if connection failed
             browser.downloads.download({ url: url });
@@ -394,7 +281,7 @@ async function sendBatchToFDM(batchItems) {
     });
 
     try {
-        const safePort = createSafePort();
+        const safePort = createSafePort(FDM_HOST);
         if (!safePort) {
             // Fallback for each item
             validItems.forEach(item => browser.downloads.download({ url: item.url }));

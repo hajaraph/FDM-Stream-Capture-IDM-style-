@@ -28,8 +28,10 @@
     ],
     "background": {
         "scripts": [
+            "browser-compat.js",
             "constants.js",
             "config.js",
+            "utils.js",
             "background.js"
         ]
     },
@@ -42,6 +44,7 @@
                 "<all_urls>"
             ],
             "js": [
+                "browser-compat.js",
                 "constants.js",
                 "config.js",
                 "content.js"
