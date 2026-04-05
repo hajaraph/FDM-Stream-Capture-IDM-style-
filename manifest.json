@@ -28,6 +28,7 @@
     ],
     "background": {
         "scripts": [
+            "constants.js",
             "config.js",
             "background.js"
         ]
@@ -41,6 +42,7 @@
                 "<all_urls>"
             ],
             "js": [
+                "constants.js",
                 "config.js",
                 "content.js"
             ],

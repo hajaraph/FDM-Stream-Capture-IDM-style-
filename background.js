@@ -21,13 +21,13 @@ function isValidDownloadUrl(url) {
 
         // Block localhost/loopback (potential SSRF)
         const hostname = parsed.hostname.toLowerCase();
-        if (['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(hostname)) return false;
+        if (BLOCKED_HOSTS.includes(hostname)) return false;
 
         // Block data: and javascript: URLs
         if (url.startsWith('data:') || url.startsWith('javascript:')) return false;
 
         // Must have a valid hostname
-        if (!hostname || hostname.length < 3) return false;
+        if (!hostname || hostname.length < LIMITS.MIN_HOSTNAME_LENGTH) return false;
 
         return true;
     } catch (e) {
@@ -157,8 +157,8 @@ function trackDownload(url, filename, status = DOWNLOAD_STATUS.SENT) {
     downloadHistory.unshift(entry);
 
     // Keep history manageable
-    if (downloadHistory.length > 500) {
-        downloadHistory = downloadHistory.slice(0, 500);
+    if (downloadHistory.length > MAX_DOWNLOAD_HISTORY) {
+        downloadHistory = downloadHistory.slice(0, MAX_DOWNLOAD_HISTORY);
     }
 
     // Persist history
@@ -210,7 +210,6 @@ browser.storage.onChanged.addListener((changes, area) => {
 
 // --- OPTIMIZED PERSIST WITH DEBOUNCE ---
 let persistTimeout = null;
-const PERSIST_DEBOUNCE_MS = 500; // Wait 500ms before writing to disk
 
 function persist() {
     // Clear any pending write
@@ -220,7 +219,7 @@ function persist() {
     persistTimeout = setTimeout(() => {
         browser.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => {});
         persistTimeout = null;
-    }, PERSIST_DEBOUNCE_MS);
+    }, TIMING.PERSIST_DEBOUNCE_MS);
 }
 
 // Force immediate persist (use sparingly)
@@ -274,7 +273,7 @@ function getSmartFileName(rawTitle, url, isYoutube = false) {
     name = name.replace(/[\\/:*?"<>|]/g, "-").trim();
     
     // 4. Fallback si vide après nettoyage
-    if (!name || name.length < 2) name = "FDM_Download_" + Math.floor(Math.random() * 1000);
+    if (!name || name.length < LIMITS.MIN_NAME_LENGTH) name = "FDM_Download_" + Math.floor(Math.random() * LIMITS.MAX_FILENAME_RANDOM_SUFFIX);
 
     // 5. Gestion de l'extension
     let extMatch = url.match(/\.(mp4|mkv|avi|webm|m3u8|ts|mp3|flac|wav|jpg|png|gif|pdf|zip|rar)(?:\?|$)/i);
@@ -292,7 +291,7 @@ function getSmartFileName(rawTitle, url, isYoutube = false) {
 function addToCatchLog(entry) {
     if (!catchLog.some(s => s.url === entry.url)) {
         catchLog.unshift(entry);
-        if (catchLog.length > 100) catchLog.pop();
+        if (catchLog.length > MAX_CATCH_LOG) catchLog.pop();
         persist();
     }
 }
@@ -359,7 +358,7 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
             }
         });
 
-        setTimeout(() => safePort.disconnect(), 1000);
+        setTimeout(() => safePort.disconnect(), TIMING.NATIVE_PORT_DISCONNECT_MS);
 
         // --- UPDATE STATUS & NOTIFICATION ---
         updateDownloadStatus(downloadEntry.id, DOWNLOAD_STATUS.SENT);
@@ -441,7 +440,7 @@ async function sendBatchToFDM(batchItems) {
             });
         }
 
-        setTimeout(() => safePort.disconnect(), 1000);
+        setTimeout(() => safePort.disconnect(), TIMING.NATIVE_PORT_DISCONNECT_MS);
 
         // --- UPDATE STATUS & SUCCESS NOTIFICATION ---
         batchIds.forEach(id => updateDownloadStatus(id, DOWNLOAD_STATUS.SENT));
@@ -558,7 +557,7 @@ browser.webRequest.onResponseStarted.addListener(
                         text: count > 0 ? count.toString() : "",
                         tabId: tabId
                     });
-                    browser.action.setBadgeBackgroundColor({ color: "#FF0000", tabId: tabId });
+                    browser.action.setBadgeBackgroundColor({ color: UI.BADGE_COLOR, tabId: tabId });
                 }
             }).catch(() => {
                 // Fallback sécurité si l'onglet ferme entre temps
@@ -739,7 +738,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     text: count > 0 ? count.toString() : "",
                     tabId: tabId
                 });
-                browser.action.setBadgeBackgroundColor({ color: "#FF0000", tabId: tabId });
+                browser.action.setBadgeBackgroundColor({ color: UI.BADGE_COLOR, tabId: tabId });
             }
         })();
     } else if (message.type === "SEND_TO_FDM") {
@@ -749,10 +748,10 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
             let cookieStr = "";
 
             if (!message.isYoutube) {
-                // Use extracted cookie logic (DRY)
+                // Use centralized cookie logic (DRY)
                 cookieStr = await getCookiesForUrls([finalReferer, finalUrl]);
             } else {
-                finalReferer = ""; // Fix 413 error on YouTube
+                finalReferer = YOUTUBE_FIX.CLEAR_REFERER; // Fix 413 error on YouTube
                 finalUrl = cleanYouTubeUrl(message.url);
             }
             sendToFDM(finalUrl, message.filename, finalReferer, cookieStr, message.isYoutube);
@@ -792,7 +791,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 // Use extracted cookie logic (DRY)
                 cookieStr = await getCookiesForUrls([referer, targetUrl]);
             } else {
-                finalReferer = ""; // Fix 413 error on YouTube
+                finalReferer = YOUTUBE_FIX.CLEAR_REFERER; // Fix 413 error on YouTube
                 targetUrl = cleanYouTubeUrl(targetUrl);
             }
 

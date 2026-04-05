@@ -13,21 +13,14 @@ function showFDMNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.id = 'fdm-notification';
 
-    const colors = {
-        success: { bg: '#10b981', border: '#059669', icon: '✓' },
-        error: { bg: '#ef4444', border: '#dc2626', icon: '✕' },
-        warning: { bg: '#f59e0b', border: '#d97706', icon: '⚠' },
-        info: { bg: '#3b82f6', border: '#2563eb', icon: 'ℹ' }
-    };
-
-    const color = colors[type] || colors.info;
+    const colors = UI.NOTIFICATION_COLORS[type] || UI.NOTIFICATION_COLORS.info;
 
     Object.assign(notification.style, {
         position: 'fixed',
         top: '20px',
         right: '20px',
-        zIndex: '2147483647',
-        background: color.bg,
+        zIndex: UI.Z_INDEX_BUTTON,
+        background: colors.bg,
         color: '#ffffff',
         padding: '14px 20px',
         borderRadius: '8px',
@@ -35,7 +28,7 @@ function showFDMNotification(message, type = 'info') {
         fontWeight: '600',
         fontFamily: 'system-ui, -apple-system, sans-serif',
         boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-        border: `2px solid ${color.border}`,
+        border: `2px solid ${colors.border}`,
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
@@ -45,7 +38,7 @@ function showFDMNotification(message, type = 'info') {
     });
 
     const icon = document.createElement('span');
-    icon.textContent = color.icon;
+    icon.textContent = colors.icon;
     icon.style.fontSize = '16px';
     icon.style.fontWeight = 'bold';
 
@@ -56,17 +49,17 @@ function showFDMNotification(message, type = 'info') {
     notification.appendChild(icon);
     notification.appendChild(text);
 
-    // Auto-dismiss after 4 seconds
+    // Auto-dismiss after configured time
     let dismissTimeout = setTimeout(() => {
         notification.style.animation = 'fdmSlideOut 0.3s ease-in';
-        setTimeout(() => notification.remove(), 300);
-    }, 4000);
+        setTimeout(() => notification.remove(), TIMING.NOTIFICATION_FADE_MS);
+    }, TIMING.NOTIFICATION_DISMISS_MS);
 
     // Dismiss on click
     notification.addEventListener('click', () => {
         clearTimeout(dismissTimeout);
         notification.style.animation = 'fdmSlideOut 0.3s ease-in';
-        setTimeout(() => notification.remove(), 300);
+        setTimeout(() => notification.remove(), TIMING.NOTIFICATION_FADE_MS);
     });
 
     document.body.appendChild(notification);
@@ -119,7 +112,7 @@ function injectStyles() {
     style.textContent = `
         #fdm-download-button {
             position: absolute;
-            z-index: 2147483647;
+            z-index: ${UI.Z_INDEX_BUTTON};
             background: #0f172a;
             color: #f8fafc;
             padding: 5px 10px;
@@ -160,7 +153,7 @@ function injectStyles() {
             border-radius: 6px;
             display: none;
             flex-direction: column;
-            z-index: 2147483648;
+            z-index: ${UI.Z_INDEX_DROPDOWN};
             overflow: hidden;
             padding: 4px 0;
             font-family: system-ui, -apple-system, sans-serif;
@@ -315,7 +308,7 @@ function createFdmButton() {
         hideTimeout = setTimeout(() => {
             dropdownMenu.style.display = 'none';
             fdmButton.style.display = 'none';
-        }, 400); // 400ms delay for smoother experience
+        }, TIMING.BUTTON_HIDE_DELAY_MS);
     });
 
     // Close menu when clicking completely outside
@@ -339,8 +332,8 @@ function positionButton(video) {
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
     // Position top-right edge with some padding
-    fdmButton.style.left = (rect.left + scrollLeft + 15) + 'px';
-    fdmButton.style.top = (rect.top + scrollTop + 15) + 'px';
+    fdmButton.style.left = (rect.left + scrollLeft + LIMITS.BUTTON_POSITION_OFFSET) + 'px';
+    fdmButton.style.top = (rect.top + scrollTop + LIMITS.BUTTON_POSITION_OFFSET) + 'px';
     fdmButton.style.display = 'block';
 }
 
@@ -385,7 +378,7 @@ function addDropdownItem(stream) {
     item.className = 'fdm-dropdown-item';
 
     // Nettoyer le titre (enlever les retours à la ligne ou caractères bizarres)
-    const cleanTitle = (stream.title || "Vidéo").trim().substring(0, 50);
+    const cleanTitle = (stream.title || "Vidéo").trim().substring(0, LIMITS.MAX_TITLE_LENGTH);
 
     // Pour YouTube ou les flux, on affiche le titre de la page Web.
     // Si pas de titre dispo, on fallback sur un nom générique.
@@ -448,7 +441,7 @@ function addDropdownItem(stream) {
             fdmButton.style.display = 'none';
             item.style.backgroundColor = '';
             item.style.color = '';
-        }, 1200);
+        }, TIMING.SUCCESS_FEEDBACK_MS);
     });
 
     dropdownMenu.appendChild(item);
@@ -492,7 +485,7 @@ function searchVideos() {
                     fdmButton.style.display = 'none';
                     dropdownMenu.style.display = 'none';
                 }
-            }, 400);
+            }, TIMING.BUTTON_HIDE_DELAY_MS);
         });
     });
 }
@@ -537,7 +530,7 @@ syncSettings().then(() => {
     setTimeout(() => {
         searchVideos();
         extractHiddenStreams();
-    }, 1000);
+    }, TIMING.INITIAL_SCAN_DELAY_MS);
 
     // Use MutationObserver to detect dynamic content changes efficiently
     let observerTimeout = null;
@@ -571,7 +564,7 @@ syncSettings().then(() => {
                 searchVideos();
                 extractHiddenStreams();
             }
-        }, 500); // Debounce 500ms
+        }, TIMING.MUTATION_DEBOUNCE_MS);
     });
 
     // Observe the entire document body for child list changes
