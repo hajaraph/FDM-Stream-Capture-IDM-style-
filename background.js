@@ -2,6 +2,128 @@
 const FDM_HOST = 'org.freedownloadmanager.fdm5.cnh';
 let nextTaskId = 1;
 
+// --- SECURITY: SENSITIVE COOKIE PATTERNS TO FILTER ---
+const SENSITIVE_COOKIE_PATTERNS = [
+    'token', 'auth', 'session', 'csrf', 'xsrf', 'secret',
+    'password', 'api_key', 'apikey', 'access_token', 'refresh_token',
+    'jwt', 'bearer', 'oauth', 'sid', 'phpsessid', 'connect.sid'
+];
+
+// --- SECURITY: URL VALIDATION ---
+function isValidDownloadUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+
+    try {
+        const parsed = new URL(url);
+
+        // Only allow http/https protocols
+        if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+
+        // Block localhost/loopback (potential SSRF)
+        const hostname = parsed.hostname.toLowerCase();
+        if (['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(hostname)) return false;
+
+        // Block data: and javascript: URLs
+        if (url.startsWith('data:') || url.startsWith('javascript:')) return false;
+
+        // Must have a valid hostname
+        if (!hostname || hostname.length < 3) return false;
+
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+// --- SECURITY: COOKIE FILTERING ---
+function filterSensitiveCookies(cookieString) {
+    if (!cookieString || typeof cookieString !== 'string') return '';
+
+    const cookies = cookieString.split(';').map(c => c.trim());
+    const filtered = cookies.filter(cookie => {
+        const cookieName = cookie.split('=')[0].toLowerCase();
+        const isSensitive = SENSITIVE_COOKIE_PATTERNS.some(pattern =>
+            cookieName.includes(pattern)
+        );
+        return !isSensitive;
+    });
+
+    return filtered.join('; ');
+}
+
+// --- NATIVE MESSAGING ERROR HANDLING ---
+let fdmConnectionState = 'unknown'; // 'connected', 'disconnected', 'unknown'
+
+async function notifyUser(message, type = 'info') {
+    // Send notification to active tab's content script
+    try {
+        const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+        if (tab) {
+            browser.tabs.sendMessage(tab.id, {
+                type: 'FDM_NOTIFICATION',
+                message: message,
+                notificationType: type
+            }).catch(() => {}); // Ignore if content script not available
+        }
+    } catch (e) {
+        console.warn('Failed to send notification to tab:', e);
+    }
+}
+
+function createSafePort() {
+    let port = null;
+    let isConnected = false;
+    let errorHandled = false;
+
+    try {
+        port = browser.runtime.connectNative(FDM_HOST);
+
+        port.onDisconnect.addListener(() => {
+            isConnected = false;
+            fdmConnectionState = 'disconnected';
+
+            const lastError = browser.runtime.lastError;
+            if (lastError && !errorHandled) {
+                errorHandled = true;
+                console.error('FDM Native Host disconnected:', lastError.message);
+                notifyUser('FDM: Impossible de se connecter a FDM. Verifiez que FDM est installe et en execution.', 'error');
+            }
+        });
+
+        isConnected = true;
+        fdmConnectionState = 'connected';
+    } catch (e) {
+        console.error('Failed to connect to FDM Native Host:', e);
+        fdmConnectionState = 'disconnected';
+        notifyUser('FDM: Echec de connexion. Verifiez que FDM est installe.', 'error');
+        return null;
+    }
+
+    return {
+        port,
+        postMessage: (data) => {
+            if (port && isConnected) {
+                try {
+                    port.postMessage(data);
+                    return true;
+                } catch (e) {
+                    console.error('FDM postMessage failed:', e);
+                    notifyUser('FDM: Erreur lors de l\'envoi du telechargement.', 'error');
+                    return false;
+                }
+            }
+            return false;
+        },
+        disconnect: () => {
+            if (port) {
+                try {
+                    port.disconnect();
+                } catch (e) {}
+            }
+        }
+    };
+}
+
 // --- REGLES DE DETECTION ---
 const DETECTION_RULES = {
     extensions: {
@@ -125,9 +247,26 @@ function addToCatchLog(entry) {
 }
 
 async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutube = false) {
+    // --- SECURITY: Validate URL before sending ---
+    if (!isValidDownloadUrl(url)) {
+        console.error('FDM: Blocked invalid URL:', url);
+        notifyUser('FDM: URL invalide ou non securise bloque.', 'error');
+        return;
+    }
+
+    // --- SECURITY: Filter sensitive cookies ---
+    const safeCookies = filterSensitiveCookies(cookies);
+
     try {
-        const port = browser.runtime.connectNative(FDM_HOST);
-        port.postMessage({
+        const safePort = createSafePort();
+        if (!safePort) {
+            // Fallback to browser download if connection failed
+            browser.downloads.download({ url: url });
+            return;
+        }
+
+        // Send handshake
+        safePort.postMessage({
             id: (nextTaskId++).toString(),
             type: "handshake",
             handshake: { api_version: "1", browser: "Firefox" }
@@ -144,7 +283,7 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
             name: cleanName,
             comment: cleanName, // FDM reads this for title sometimes
             httpReferer: referer,
-            httpCookies: cookies,
+            httpCookies: safeCookies, // Use filtered cookies
             userAgent: navigator.userAgent,
             originalUrl: url
         };
@@ -157,7 +296,7 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
         }
 
         // On utilise TOUJOURS le téléchargement direct (IDM style)
-        port.postMessage({
+        safePort.postMessage({
             id: (nextTaskId++).toString(),
             type: "create_downloads",
             create_downloads: {
@@ -165,25 +304,53 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
             }
         });
 
-        setTimeout(() => port.disconnect(), 1000);
+        setTimeout(() => safePort.disconnect(), 1000);
+
+        // --- SUCCESS NOTIFICATION ---
+        notifyUser('FDM: Telechargement envoye avec succes.', 'success');
 
     } catch (e) {
+        console.error('FDM sendToFDM error:', e);
         browser.downloads.download({ url: url });
+        notifyUser('FDM: Erreur, telechargement via navigateur.', 'warning');
     }
 }
 
 async function sendBatchToFDM(batchItems) {
+    // --- SECURITY: Validate all URLs before sending ---
+    const validItems = batchItems.filter(item => {
+        if (!isValidDownloadUrl(item.url)) {
+            console.warn('FDM Batch: Blocked invalid URL:', item.url);
+            return false;
+        }
+        return true;
+    });
+
+    if (validItems.length === 0) {
+        notifyUser('FDM: Aucun URL valide a telecharger.', 'error');
+        return;
+    }
+
     try {
-        const port = browser.runtime.connectNative(FDM_HOST);
-        port.postMessage({
+        const safePort = createSafePort();
+        if (!safePort) {
+            // Fallback for each item
+            validItems.forEach(item => browser.downloads.download({ url: item.url }));
+            return;
+        }
+
+        // Send handshake
+        safePort.postMessage({
             id: (nextTaskId++).toString(),
             type: "handshake",
             handshake: { api_version: "1", browser: "Firefox" }
         });
 
-        let downloadObjs = batchItems.map(item => {
+        let downloadObjs = validItems.map(item => {
             let nameFromItem = item.filename || item.title || "Stream_Catcher_Item";
             let cleanName = extensionSettings.smartNaming ? getSmartFileName(nameFromItem, item.url, false) : nameFromItem;
+            // --- SECURITY: Filter sensitive cookies for each item ---
+            const safeItemCookies = filterSensitiveCookies(item.cookies || '');
 
             return {
                 url: item.url,
@@ -193,13 +360,14 @@ async function sendBatchToFDM(batchItems) {
                 name: cleanName,
                 comment: cleanName,
                 httpReferer: item.referer || item.url,
+                httpCookies: safeItemCookies, // Use filtered cookies
                 userAgent: navigator.userAgent,
                 originalUrl: item.url
             };
         });
 
         if (downloadObjs.length > 0) {
-            port.postMessage({
+            safePort.postMessage({
                 id: (nextTaskId++).toString(),
                 type: "create_downloads",
                 create_downloads: {
@@ -208,11 +376,16 @@ async function sendBatchToFDM(batchItems) {
             });
         }
 
-        setTimeout(() => port.disconnect(), 1000);
+        setTimeout(() => safePort.disconnect(), 1000);
+
+        // --- SUCCESS NOTIFICATION ---
+        notifyUser(`FDM: ${downloadObjs.length} fichier(s) envoye(s) avec succes.`, 'success');
 
     } catch (e) {
+        console.error('FDM sendBatchToFDM error:', e);
         // Fallback for each
-        batchItems.forEach(item => browser.downloads.download({ url: item.url }));
+        validItems.forEach(item => browser.downloads.download({ url: item.url }));
+        notifyUser('FDM: Erreur batch, telechargement via navigateur.', 'warning');
     }
 }
 

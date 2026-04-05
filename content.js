@@ -4,6 +4,93 @@ let currentVideo = null;
 let dropdownMenu = null;
 let hideTimeout = null;
 
+// --- NOTIFICATION SYSTEM ---
+function showFDMNotification(message, type = 'info') {
+    // Remove existing notification if any
+    const existing = document.getElementById('fdm-notification');
+    if (existing) existing.remove();
+
+    const notification = document.createElement('div');
+    notification.id = 'fdm-notification';
+
+    const colors = {
+        success: { bg: '#10b981', border: '#059669', icon: '✓' },
+        error: { bg: '#ef4444', border: '#dc2626', icon: '✕' },
+        warning: { bg: '#f59e0b', border: '#d97706', icon: '⚠' },
+        info: { bg: '#3b82f6', border: '#2563eb', icon: 'ℹ' }
+    };
+
+    const color = colors[type] || colors.info;
+
+    Object.assign(notification.style, {
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        zIndex: '2147483647',
+        background: color.bg,
+        color: '#ffffff',
+        padding: '14px 20px',
+        borderRadius: '8px',
+        fontSize: '13px',
+        fontWeight: '600',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+        border: `2px solid ${color.border}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        maxWidth: '350px',
+        animation: 'fdmSlideIn 0.3s ease-out',
+        cursor: 'pointer'
+    });
+
+    const icon = document.createElement('span');
+    icon.textContent = color.icon;
+    icon.style.fontSize = '16px';
+    icon.style.fontWeight = 'bold';
+
+    const text = document.createElement('span');
+    text.textContent = message;
+    text.style.flex = '1';
+
+    notification.appendChild(icon);
+    notification.appendChild(text);
+
+    // Auto-dismiss after 4 seconds
+    let dismissTimeout = setTimeout(() => {
+        notification.style.animation = 'fdmSlideOut 0.3s ease-in';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+
+    // Dismiss on click
+    notification.addEventListener('click', () => {
+        clearTimeout(dismissTimeout);
+        notification.style.animation = 'fdmSlideOut 0.3s ease-in';
+        setTimeout(() => notification.remove(), 300);
+    });
+
+    document.body.appendChild(notification);
+}
+
+// Add animation styles
+function addNotificationStyles() {
+    if (document.getElementById('fdm-notification-style')) return;
+
+    const style = document.createElement('style');
+    style.id = 'fdm-notification-style';
+    style.textContent = `
+        @keyframes fdmSlideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fdmSlideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    (document.head || document.documentElement).appendChild(style);
+}
+
 let currentSettings = {
     showButton: true,
     scanHiddenStreams: true
@@ -448,6 +535,7 @@ function extractHiddenStreams() {
 
 // Initial check and periodic polling for dynamic content
 syncSettings().then(() => {
+    addNotificationStyles();
     setTimeout(() => {
         searchVideos();
         extractHiddenStreams();
@@ -456,6 +544,14 @@ syncSettings().then(() => {
             extractHiddenStreams();
         }, 2000);
     }, 1000);
+});
+
+// --- LISTEN FOR NOTIFICATIONS FROM BACKGROUND ---
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'FDM_NOTIFICATION') {
+        showFDMNotification(request.message, request.notificationType);
+    }
+    return true;
 });
 
 // Listener for Mass Downloader feature
