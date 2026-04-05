@@ -250,7 +250,6 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
 
         // --- UPDATE STATUS & NOTIFICATION ---
         updateDownloadStatus(downloadEntry.id, DOWNLOAD_STATUS.SENT);
-        notifyUser('FDM: Telechargement envoye avec succes.', 'success');
 
     } catch (e) {
         console.error('FDM sendToFDM error:', e);

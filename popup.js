@@ -1,6 +1,7 @@
 async function loadStreams() {
     try {
-        document.getElementById('header-title').innerText = api.i18n.getMessage("popupTitle");
+        const headerTitle = document.getElementById('header-title');
+        if (headerTitle) headerTitle.innerText = api.i18n.getMessage("popupTitle") || "FDM Stream Capture";
 
         const tabs = await api.tabs.query({ active: true, currentWindow: true });
         if (!tabs || tabs.length === 0) return;
@@ -15,17 +16,19 @@ async function loadStreams() {
         streamList.innerHTML = '';
 
         if (streams.length === 0) {
-            streamList.textContent = '';
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'empty-msg';
-            msgDiv.textContent = api.i18n.getMessage("emptyMsg");
-            streamList.appendChild(msgDiv);
+            streamList.innerHTML = `
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <p>${api.i18n.getMessage("emptyMsg") || "Aucun flux détecté sur cette page."}<br><span style="font-size:11px;opacity:0.7">Lancez une vidéo pour commencer</span></p>
+                </div>
+            `;
             return;
         }
 
-        console.log("Flux reçus :", streams); // Pour le debug
+        console.log("Flux reçus :", streams);
 
-        // Groupage par type (Exactement les mêmes que dans background.js)
         const groups = {
             'youtube': streams.filter(s => s.type === 'youtube'),
             'manifests': streams.filter(s => s.type === 'manifests'),
@@ -33,103 +36,105 @@ async function loadStreams() {
             'segments': streams.filter(s => s.type === 'segments')
         };
 
-        // On affiche les groupes s'ils existent
-        if (groups.youtube.length > 0) addGroup(streamList, api.i18n.getMessage("groupYoutube"), groups.youtube);
-        if (groups.manifests.length > 0) addGroup(streamList, api.i18n.getMessage("groupManifests"), groups.manifests);
-        if (groups.videos.length > 0) addGroup(streamList, api.i18n.getMessage("groupVideos"), groups.videos);
-        if (groups.segments.length > 0) addGroup(streamList, api.i18n.getMessage("groupSegments"), groups.segments);
+        if (groups.youtube.length > 0) addSection(streamList, api.i18n.getMessage("groupYoutube") || "YouTube", groups.youtube, 'youtube');
+        if (groups.manifests.length > 0) addSection(streamList, api.i18n.getMessage("groupManifests") || "HLS/DASH", groups.manifests, 'manifests');
+        if (groups.videos.length > 0) addSection(streamList, api.i18n.getMessage("groupVideos") || "Vidéos", groups.videos, 'videos');
+        if (groups.segments.length > 0) addSection(streamList, api.i18n.getMessage("groupSegments") || "Segments", groups.segments, 'segments');
 
-        // Sécurité : Afficher tout ce qui n'a pas été groupé
         const others = streams.filter(s => s.type !== 'youtube' && s.type !== 'manifests' && s.type !== 'videos' && s.type !== 'segments');
-        if (others.length > 0) addGroup(streamList, api.i18n.getMessage("groupOthers"), others);
+        if (others.length > 0) addSection(streamList, api.i18n.getMessage("groupOthers") || "Autres", others, 'others');
 
         attachEvents();
 
     } catch (err) {
         console.error("Popup Error:", err);
-        const errorMsg = api.i18n.getMessage("errorMsg", err.message);
         const listDiv = document.getElementById('stream-list');
-        listDiv.textContent = '';
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'empty-msg';
-        errorDiv.textContent = errorMsg;
-        listDiv.appendChild(errorDiv);
+        listDiv.innerHTML = `
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 8v4M12 16h.01"></path>
+                </svg>
+                <p>Erreur: ${err.message || "Impossible de charger les flux"}</p>
+            </div>
+        `;
     }
 }
 
-function addGroup(container, title, items) {
+function addSection(container, title, items, type) {
     const section = document.createElement('div');
-    section.className = 'group-section';
-    const h3 = document.createElement('h3');
-    h3.className = 'group-title';
-    h3.textContent = title;
-    section.appendChild(h3);
+    section.className = 'section';
+
+    const label = document.createElement('div');
+    label.className = 'section-label';
+    label.textContent = `${title} · ${items.length}`;
+    section.appendChild(label);
 
     items.forEach(stream => {
-        const item = document.createElement('div');
-        item.className = 'stream-item';
+        const card = document.createElement('div');
+        card.className = 'card';
 
-        const cleanTitle = (stream.title || "Vidéo").trim().substring(0, 50);
-        const fileName = stream.type === 'youtube' ? 'YouTube HD' : cleanTitle;
-        const isYt = stream.type === 'youtube' ? "true" : "false";
+        const header = document.createElement('div');
+        header.className = 'card-header';
 
-        const infoDiv = document.createElement('div');
-        infoDiv.className = 'stream-info';
-
-        // Add Type Badge
         const badge = document.createElement('span');
-        badge.className = 'type-badge type-' + (stream.type || 'videos');
-        badge.textContent = stream.type === 'youtube' ? 'YouTube' : (stream.type === 'manifests' ? 'HLS/DASH' : (stream.type === 'segments' ? 'SEGMENT' : 'VIDEO'));
-        infoDiv.appendChild(badge);
+        badge.className = `badge badge-${stream.type || 'others'}`;
+        const labels = {
+            youtube: 'YT',
+            manifests: 'HLS',
+            videos: 'MP4',
+            segments: 'SEG',
+            others: 'FILE'
+        };
+        badge.textContent = labels[stream.type] || 'FILE';
+        header.appendChild(badge);
 
-        const titleDiv = document.createElement('div');
-        titleDiv.className = 'stream-title';
-        titleDiv.title = stream.title || '';
-        titleDiv.textContent = fileName;
+        const titleText = document.createElement('div');
+        titleText.className = 'card-title';
+        titleText.textContent = stream.type === 'youtube' ? 'YouTube HD' : (stream.title || "Vidéo").trim().substring(0, 45);
+        header.appendChild(titleText);
 
-        const urlDiv = document.createElement('div');
-        urlDiv.className = 'stream-url';
-        urlDiv.title = stream.url || '';
-        urlDiv.textContent = stream.url;
+        card.appendChild(header);
 
-        infoDiv.appendChild(titleDiv);
-        infoDiv.appendChild(urlDiv);
+        const url = document.createElement('div');
+        url.className = 'card-url';
+        url.textContent = stream.url;
+        url.title = stream.url;
+        card.appendChild(url);
 
-        const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'actions';
+        const actions = document.createElement('div');
+        actions.className = 'card-actions';
 
-        const btnDl = document.createElement('button');
-        btnDl.className = 'btn-download';
-        btnDl.setAttribute('data-url', stream.url);
-        btnDl.setAttribute('data-name', stream.title || '');
-        btnDl.setAttribute('data-referer', stream.pageUrl || '');
-        btnDl.setAttribute('data-youtube', isYt);
-        btnDl.textContent = api.i18n.getMessage("btnDownload");
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'btn btn-primary';
+        dlBtn.setAttribute('data-url', stream.url);
+        dlBtn.setAttribute('data-name', stream.title || '');
+        dlBtn.setAttribute('data-referer', stream.pageUrl || '');
+        dlBtn.setAttribute('data-youtube', stream.type === 'youtube' ? "true" : "false");
+        dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Télécharger`;
+        actions.appendChild(dlBtn);
 
-        const btnCp = document.createElement('button');
-        btnCp.className = 'btn-copy';
-        btnCp.setAttribute('data-url', stream.url);
-        btnCp.textContent = api.i18n.getMessage("btnCopy");
+        const cpBtn = document.createElement('button');
+        cpBtn.className = 'btn btn-secondary';
+        cpBtn.setAttribute('data-url', stream.url);
+        cpBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>Copier`;
+        actions.appendChild(cpBtn);
 
-        actionsDiv.appendChild(btnDl);
-        actionsDiv.appendChild(btnCp);
-
-        item.appendChild(infoDiv);
-        item.appendChild(actionsDiv);
-
-        section.appendChild(item);
+        card.appendChild(actions);
+        section.appendChild(card);
     });
 
     container.appendChild(section);
 }
 
 function attachEvents() {
-    document.querySelectorAll('.btn-download').forEach(btn => {
+    document.querySelectorAll('.btn-primary').forEach(btn => {
         btn.onclick = (e) => {
-            const url = e.target.getAttribute('data-url');
-            const name = e.target.getAttribute('data-name');
-            const referer = e.target.getAttribute('data-referer');
-            const isYoutube = e.target.getAttribute('data-youtube') === "true";
+            const target = e.target.closest('.btn-primary');
+            const url = target.getAttribute('data-url');
+            const name = target.getAttribute('data-name');
+            const referer = target.getAttribute('data-referer');
+            const isYoutube = target.getAttribute('data-youtube') === "true";
 
             api.runtime.sendMessage({
                 type: "SEND_TO_FDM",
@@ -142,21 +147,27 @@ function attachEvents() {
         };
     });
 
-    document.querySelectorAll('.btn-copy').forEach(btn => {
+    document.querySelectorAll('.btn-secondary').forEach(btn => {
         btn.onclick = (e) => {
-            const url = e.target.getAttribute('data-url');
+            const target = e.target.closest('.btn-secondary');
+            const url = target.getAttribute('data-url');
             navigator.clipboard.writeText(url).then(() => {
-                e.target.innerText = api.i18n.getMessage("btnCopied");
-                setTimeout(() => e.target.innerText = api.i18n.getMessage("btnCopy"), 1500);
+                const original = target.innerHTML;
+                target.classList.add('copied');
+                target.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"></path></svg>Copié !`;
+                setTimeout(() => {
+                    target.innerHTML = original;
+                    target.classList.remove('copied');
+                }, 1500);
             });
         };
     });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('header-title').textContent = api.i18n.getMessage("popupTitle") || "FDM Stream Capture";
+    const headerTitle = document.getElementById('header-title');
+    if (headerTitle) headerTitle.textContent = api.i18n.getMessage("popupTitle") || "FDM Stream Capture";
 
-    // Wire up the settings button
     const settingsBtn = document.getElementById('open-settings');
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => {
@@ -177,170 +188,181 @@ document.addEventListener('DOMContentLoaded', () => {
     const strCart = api.i18n.getMessage("strCart") || "Panier";
     const strDlSelected = api.i18n.getMessage("strDlSelected") || "Télécharger sélection";
 
-    btnScan.textContent = api.i18n.getMessage("btnScanPage") || "Scanner la page";
-    btnClearCart.textContent = api.i18n.getMessage("btnClearCart") || "Vider";
+    if (btnScan) btnScan.textContent = api.i18n.getMessage("btnScanPage") || "Scanner la page";
+    if (btnClearCart) btnClearCart.textContent = api.i18n.getMessage("btnClearCart") || "Vider";
 
-    // Init Cart badge
     api.runtime.sendMessage({ type: "GET_CATCH_LOG" }).then(log => {
-        if (log && log.length > 0) {
-            btnShowCart.textContent = `${strCart} (${log.length})`;
-        } else {
-            btnShowCart.textContent = `${strCart} (0)`;
+        if (btnShowCart) {
+            if (log && log.length > 0) {
+                btnShowCart.textContent = `${strCart} (${log.length})`;
+            } else {
+                btnShowCart.textContent = `${strCart} (0)`;
+            }
         }
     }).catch(() => { });
 
-    btnShowCart.addEventListener('click', async () => {
-        try {
-            const log = await api.runtime.sendMessage({ type: "GET_CATCH_LOG" }) || [];
-            batchItems = log.map(s => ({
-                url: s.url,
-                title: s.title || "Vidéo",
-                type: s.type || 'MEDIA',
-                referer: s.pageUrl || ""
-            }));
-            renderBatchList(batchItems, true);
-        } catch (e) { }
-    });
+    if (btnShowCart) {
+        btnShowCart.addEventListener('click', async () => {
+            try {
+                const log = await api.runtime.sendMessage({ type: "GET_CATCH_LOG" }) || [];
+                batchItems = log.map(s => ({
+                    url: s.url,
+                    title: s.title || "Vidéo",
+                    type: s.type || 'MEDIA',
+                    referer: s.pageUrl || ""
+                }));
+                renderBatchList(batchItems, true);
+            } catch (e) { }
+        });
+    }
 
-    btnClearCart.addEventListener('click', async () => {
-        await api.runtime.sendMessage({ type: "CLEAR_CATCH_LOG" });
-        batchItems = [];
-        btnShowCart.textContent = `${strCart} (0)`;
-        btnDlSelected.textContent = `${strDlSelected} (0)`;
-        btnDlSelected.style.display = 'none';
-        btnClearCart.style.display = 'none';
-        btnScan.style.display = 'block';
-        btnShowCart.style.display = 'block';
-        loadStreams(); // Revenir à la vue normale
-    });
-
-    btnScan.addEventListener('click', async () => {
-        btnScan.textContent = api.i18n.getMessage("scanInProgress") || "Recherche en cours...";
-        try {
-            const tabs = await api.tabs.query({ active: true, currentWindow: true });
-            if (tabs && tabs[0]) {
-                const response = await api.tabs.sendMessage(tabs[0].id, { type: "SCAN_PAGE" });
-                if (response && response.items) {
-                    batchItems = response.items;
-                    renderBatchList(batchItems);
-                }
+    if (btnClearCart) {
+        btnClearCart.addEventListener('click', async () => {
+            await api.runtime.sendMessage({ type: "CLEAR_CATCH_LOG" });
+            batchItems = [];
+            if (btnShowCart) btnShowCart.textContent = `${strCart} (0)`;
+            if (btnDlSelected) {
+                btnDlSelected.textContent = `${strDlSelected} (0)`;
+                btnDlSelected.style.display = 'none';
             }
-        } catch (e) {
-            console.error(e);
-            btnScan.textContent = api.i18n.getMessage("scanError") || "Erreur (Rechargez la page)";
-            setTimeout(() => btnScan.textContent = api.i18n.getMessage("btnScanPage") || "Scanner la page", 2000);
-        }
-    });
+            if (btnClearCart) btnClearCart.style.display = 'none';
+            if (btnScan) btnScan.style.display = 'block';
+            if (btnShowCart) btnShowCart.style.display = 'block';
+            loadStreams();
+        });
+    }
 
-    btnDlSelected.addEventListener('click', () => {
-        const checkedBoxes = document.querySelectorAll('.batch-checkbox:checked');
-        const selectedUrls = Array.from(checkedBoxes).map(cb => cb.value);
-        const selectedItems = batchItems.filter(item => selectedUrls.includes(item.url));
+    if (btnScan) {
+        btnScan.addEventListener('click', async () => {
+            btnScan.textContent = api.i18n.getMessage("scanInProgress") || "Recherche en cours...";
+            try {
+                const tabs = await api.tabs.query({ active: true, currentWindow: true });
+                if (tabs && tabs[0]) {
+                    const response = await api.tabs.sendMessage(tabs[0].id, { type: "SCAN_PAGE" });
+                    if (response && response.items) {
+                        batchItems = response.items;
+                        renderBatchList(batchItems);
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+                btnScan.textContent = api.i18n.getMessage("scanError") || "Erreur (Rechargez la page)";
+                setTimeout(() => btnScan.textContent = api.i18n.getMessage("btnScanPage") || "Scanner la page", 2000);
+            }
+        });
+    }
 
-        if (selectedItems.length > 0) {
-            api.runtime.sendMessage({
-                type: "DOWNLOAD_BATCH",
-                items: selectedItems
-            });
-            btnDlSelected.textContent = api.i18n.getMessage("cartSentMsg") || "Fichiers envoyés !";
-            setTimeout(() => window.close(), 1500);
-        }
-    });
+    if (btnDlSelected) {
+        btnDlSelected.addEventListener('click', () => {
+            const checkedBoxes = document.querySelectorAll('.checkbox:checked');
+            const selectedUrls = Array.from(checkedBoxes).map(cb => cb.value);
+            const selectedItems = batchItems.filter(item => selectedUrls.includes(item.url));
+
+            if (selectedItems.length > 0) {
+                api.runtime.sendMessage({
+                    type: "DOWNLOAD_BATCH",
+                    items: selectedItems
+                });
+                btnDlSelected.textContent = api.i18n.getMessage("cartSentMsg") || "Envoyé !";
+                setTimeout(() => window.close(), 1500);
+            }
+        });
+    }
 
     function renderBatchList(items, isCart = false) {
         const streamList = document.getElementById('stream-list');
         streamList.innerHTML = '';
-        btnScan.style.display = 'none';
-        btnShowCart.style.display = 'none';
-        btnDlSelected.style.display = 'block';
-        if (isCart) btnClearCart.style.display = 'block';
-        else btnClearCart.style.display = 'none';
+        if (btnScan) btnScan.style.display = 'none';
+        if (btnShowCart) btnShowCart.style.display = 'none';
+        if (btnDlSelected) btnDlSelected.style.display = 'block';
+        if (isCart && btnClearCart) btnClearCart.style.display = 'block';
+        else if (btnClearCart) btnClearCart.style.display = 'none';
 
         if (items.length === 0) {
-            const msg = document.createElement('div');
-            msg.className = 'empty-msg';
-            msg.textContent = api.i18n.getMessage("cartEmptyMsg") || "Aucun média trouvé.";
-            streamList.appendChild(msg);
+            streamList.innerHTML = `
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                        <path d="M9 12l2 2 4-4"></path>
+                    </svg>
+                    <p>${api.i18n.getMessage("cartEmptyMsg") || "Aucun média trouvé."}</p>
+                </div>
+            `;
             return;
         }
 
         const section = document.createElement('div');
-        section.className = 'group-section';
-        const h3 = document.createElement('h3');
-        h3.className = 'group-title';
+        section.className = 'section';
+
+        const label = document.createElement('div');
+        label.className = 'section-label';
         const selMsg = api.i18n.getMessage("cartSelectMsg") || "Sélectionnez les fichiers";
-        h3.textContent = `${selMsg} (${items.length})`;
-        section.appendChild(h3);
+        label.textContent = `${selMsg} · ${items.length}`;
+        section.appendChild(label);
 
         const toggleAll = document.createElement('label');
-        toggleAll.style.cursor = 'pointer';
-        toggleAll.style.fontSize = '12px';
-        toggleAll.style.display = 'block';
-        toggleAll.style.marginBottom = '10px';
-        toggleAll.style.fontWeight = 'bold';
-        const toggleStr = api.i18n.getMessage("cartToggleAll") || "Tout cocher / décocher";
+        toggleAll.className = 'toggle-all';
+        const toggleStr = api.i18n.getMessage("cartToggleAll") || "Tout cocher";
         const toggleCheckbox = document.createElement('input');
         toggleCheckbox.type = 'checkbox';
         toggleCheckbox.checked = true;
         toggleCheckbox.id = 'toggle-all';
+        toggleCheckbox.className = 'checkbox';
         toggleAll.appendChild(toggleCheckbox);
-        toggleAll.appendChild(document.createTextNode(' ' + toggleStr));
+        toggleAll.appendChild(document.createTextNode(toggleStr));
         section.appendChild(toggleAll);
 
         const updateCount = () => {
-            const checked = document.querySelectorAll('.batch-checkbox:checked').length;
-            btnDlSelected.textContent = `${strDlSelected} (${checked})`;
+            const checked = document.querySelectorAll('.checkbox:checked').length;
+            if (btnDlSelected) btnDlSelected.textContent = `${strDlSelected} (${checked})`;
         };
 
-        const listDiv = document.createElement('div');
         items.forEach(item => {
-            const row = document.createElement('div');
-            row.className = 'stream-item selectable';
+            const card = document.createElement('div');
+            card.className = 'card batch';
 
             const checkDiv = document.createElement('div');
-            checkDiv.className = 'checkbox-container';
             checkDiv.style.display = 'flex';
-            const batchCb = document.createElement('input');
-            batchCb.type = 'checkbox';
-            batchCb.className = 'batch-checkbox';
-            batchCb.value = item.url;
-            batchCb.checked = true;
-            checkDiv.appendChild(batchCb);
+            checkDiv.style.alignItems = 'center';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'checkbox';
+            cb.value = item.url;
+            cb.checked = true;
+            checkDiv.appendChild(cb);
+            card.appendChild(checkDiv);
 
-            row.appendChild(checkDiv);
+            const info = document.createElement('div');
+            info.style.flex = '1';
+            info.style.overflow = 'hidden';
 
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'stream-info';
+            const title = document.createElement('div');
+            title.className = 'card-title';
+            title.textContent = item.title;
+            info.appendChild(title);
 
-            const titleDiv = document.createElement('div');
-            titleDiv.className = 'stream-title';
-            titleDiv.textContent = item.title;
+            const url = document.createElement('div');
+            url.className = 'card-url';
+            url.textContent = item.url;
+            info.appendChild(url);
 
-            const urlDiv = document.createElement('div');
-            urlDiv.className = 'stream-url';
-            urlDiv.textContent = item.url;
+            card.appendChild(info);
 
-            infoDiv.appendChild(titleDiv);
-            infoDiv.appendChild(urlDiv);
-
-            row.appendChild(infoDiv);
-
-            row.addEventListener('click', (e) => {
+            card.addEventListener('click', (e) => {
                 if (e.target.tagName !== 'INPUT') {
-                    const cb = row.querySelector('input');
-                    cb.checked = !cb.checked;
+                    const checkbox = card.querySelector('input');
+                    checkbox.checked = !checkbox.checked;
                 }
                 updateCount();
             });
 
-            listDiv.appendChild(row);
+            section.appendChild(card);
         });
 
-        section.appendChild(listDiv);
         streamList.appendChild(section);
 
         document.getElementById('toggle-all').addEventListener('change', (e) => {
-            document.querySelectorAll('.batch-checkbox').forEach(cb => cb.checked = e.target.checked);
+            document.querySelectorAll('.checkbox').forEach(cb => cb.checked = e.target.checked);
             updateCount();
         });
 
