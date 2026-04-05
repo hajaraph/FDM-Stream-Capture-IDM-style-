@@ -25,7 +25,17 @@ function showFDMNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.id = 'fdm-notification';
     notification.style.cssText = `position:fixed;top:20px;right:20px;z-index:2147483647;background:${color.bg};color:#fff;padding:12px 16px;border-radius:8px;font-size:12px;font-weight:600;font-family:system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,0.2);border:1px solid ${color.border};display:flex;align-items:center;gap:8px;max-width:320px;cursor:pointer;`;
-    notification.innerHTML = `<span style="font-size:14px;font-weight:bold">${color.icon}</span><span style="flex:1">${message}</span>`;
+    
+    const iconSpan = document.createElement('span');
+    iconSpan.style.cssText = 'font-size:14px;font-weight:bold';
+    iconSpan.textContent = color.icon;
+    
+    const textSpan = document.createElement('span');
+    textSpan.style.cssText = 'flex:1';
+    textSpan.textContent = message;
+    
+    notification.appendChild(iconSpan);
+    notification.appendChild(textSpan);
     document.body.appendChild(notification);
 
     setTimeout(() => notification.remove(), 3000);
@@ -312,11 +322,18 @@ function addDropdownItem(stream) {
     const cleanTitle = (stream.title || "Vidéo").trim().substring(0, 30);
     const fileName = stream.type === 'youtube' ? 'YouTube HD' : cleanTitle;
 
-    // Use inline styles for maximum reliability
-    item.innerHTML = `
-        <span style="flex-shrink:0; background:${badgeColor}; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:bold; min-width:24px; text-align:center;">${ext}</span>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis" title="${stream.url || ''}">${fileName}</span>
-    `;
+    // Secure DOM creation instead of innerHTML
+    const badgeSpan = document.createElement('span');
+    badgeSpan.style.cssText = `flex-shrink:0; background:${badgeColor}; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:bold; min-width:24px; text-align:center;`;
+    badgeSpan.textContent = ext;
+
+    const nameSpan = document.createElement('span');
+    nameSpan.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis';
+    nameSpan.title = stream.url || '';
+    nameSpan.textContent = fileName;
+
+    item.appendChild(badgeSpan);
+    item.appendChild(nameSpan);
 
     item.addEventListener('click', (e) => {
         e.stopPropagation();

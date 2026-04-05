@@ -16,14 +16,25 @@ async function loadStreams() {
         streamList.innerHTML = '';
 
         if (streams.length === 0) {
-            streamList.innerHTML = `
-                <div class="empty">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
-                    <p>${api.i18n.getMessage("emptyMsg") || "Aucun flux détecté"}</p>
-                </div>
-            `;
+            streamList.innerHTML = ''; // Clear list first safely
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'empty';
+            
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("viewBox", "0 0 24 24");
+            svg.setAttribute("fill", "none");
+            svg.setAttribute("stroke", "currentColor");
+            svg.setAttribute("stroke-width", "1.5");
+            const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            poly.setAttribute("points", "5 3 19 12 5 21 5 3");
+            svg.appendChild(poly);
+            
+            const p = document.createElement('p');
+            p.textContent = api.i18n.getMessage("emptyMsg") || "Aucun flux détecté";
+            
+            emptyDiv.appendChild(svg);
+            emptyDiv.appendChild(p);
+            streamList.appendChild(emptyDiv);
             return;
         }
 
@@ -51,7 +62,14 @@ async function loadStreams() {
     } catch (err) {
         console.error("Popup Error:", err);
         const listDiv = document.getElementById('stream-list');
-        listDiv.innerHTML = `<div class="empty"><p>Erreur: ${err.message || "Impossible de charger"}</p></div>`;
+        listDiv.textContent = ''; // Clear safely
+        
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty';
+        const p = document.createElement('p');
+        p.textContent = `Erreur: ${err.message || "Impossible de charger"}`;
+        emptyDiv.appendChild(p);
+        listDiv.appendChild(emptyDiv);
     }
 }
 
@@ -122,13 +140,41 @@ function addTimelineSection(container, title, items) {
         dlBtn.setAttribute('data-name', stream.title || '');
         dlBtn.setAttribute('data-referer', stream.pageUrl || '');
         dlBtn.setAttribute('data-youtube', stream.type === 'youtube' ? "true" : "false");
-        dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
+        
+        // Create SVG safely
+        const dlSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        dlSvg.setAttribute("viewBox", "0 0 24 24");
+        dlSvg.setAttribute("fill", "none");
+        dlSvg.setAttribute("stroke", "currentColor");
+        dlSvg.setAttribute("stroke-width", "2.5");
+        const dlPath1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        dlPath1.setAttribute("d", "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4");
+        const dlPoly1 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        dlPoly1.setAttribute("points", "7 10 12 15 17 10");
+        const dlLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        dlLine.setAttribute("x1", "12"); dlLine.setAttribute("y1", "15");
+        dlLine.setAttribute("x2", "12"); dlLine.setAttribute("y2", "3");
+        dlSvg.appendChild(dlPath1); dlSvg.appendChild(dlPoly1); dlSvg.appendChild(dlLine);
+        dlBtn.appendChild(dlSvg);
         actions.appendChild(dlBtn);
 
         const cpBtn = document.createElement('button');
         cpBtn.className = 'tl-btn tl-btn-cp';
         cpBtn.setAttribute('data-url', stream.url);
-        cpBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+        
+        // Create SVG safely
+        const cpSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        cpSvg.setAttribute("viewBox", "0 0 24 24");
+        cpSvg.setAttribute("fill", "none");
+        cpSvg.setAttribute("stroke", "currentColor");
+        cpSvg.setAttribute("stroke-width", "2.5");
+        const cpRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        cpRect.setAttribute("x", "9"); cpRect.setAttribute("y", "9");
+        cpRect.setAttribute("width", "13"); cpRect.setAttribute("height", "13"); cpRect.setAttribute("rx", "2");
+        const cpPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        cpPath.setAttribute("d", "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1");
+        cpSvg.appendChild(cpRect); cpSvg.appendChild(cpPath);
+        cpBtn.appendChild(cpSvg);
         actions.appendChild(cpBtn);
 
         card.appendChild(actions);
@@ -258,7 +304,13 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (btnClearCart) btnClearCart.style.display = 'none';
 
         if (items.length === 0) {
-            streamList.innerHTML = `<div class="empty"><p>${api.i18n.getMessage("cartEmptyMsg") || "Aucun média"}</p></div>`;
+            streamList.textContent = ''; // Clear safely
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'empty';
+            const p = document.createElement('p');
+            p.textContent = api.i18n.getMessage("cartEmptyMsg") || "Aucun média";
+            emptyDiv.appendChild(p);
+            streamList.appendChild(emptyDiv);
             return;
         }
 
