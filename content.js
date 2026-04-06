@@ -42,194 +42,210 @@ function showFDMNotification(message, type = 'info') {
     notification.onclick = () => notification.remove();
 }
 
-function injectStyles() {
-    if (document.getElementById('fdm-modern-style')) return;
+// --- PREMIUM UI: Shadow DOM Wrapper ---
+let fdmShadowRoot = null;
+let fdmContainer = null;
+
+function ensureShadowRoot() {
+    if (fdmShadowRoot) return;
+    fdmContainer = document.createElement('div');
+    fdmContainer.id = 'fdm-overlay-container';
+    fdmContainer.style.cssText = 'position:absolute;top:0;left:0;width:0;height:0;z-index:2147483647;pointer-events:none;';
+    document.documentElement.appendChild(fdmContainer);
+    fdmShadowRoot = fdmContainer.attachShadow({ mode: 'open' });
+    injectPremiumStyles();
+}
+
+function injectPremiumStyles() {
     const style = document.createElement('style');
-    style.id = 'fdm-modern-style';
     style.textContent = `
         #fdm-download-button {
-            position: absolute;
+            position: fixed;
             z-index: 2147483646;
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            background: #171717;
+            height: 44px;
+            width: 44px; /* Cercle parfait par défaut */
+            border-radius: 22px;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             color: #ffffff;
             display: none;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-            font-family: system-ui, -apple-system, sans-serif;
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 0 0 1.5px rgba(255, 255, 255, 0.15);
+            font-family: 'Inter', system-ui, sans-serif;
+            transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease, background 0.2s ease;
             border: none;
             padding: 0;
+            pointer-events: auto;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        #fdm-download-button .btn-text {
+            font-size: 13px;
+            font-weight: 700;
+            opacity: 0;
+            max-width: 0;
+            transition: opacity 0.3s ease, max-width 0.4s ease, margin 0.4s ease;
+            margin-left: 0;
         }
 
         #fdm-download-button:hover {
-            transform: scale(1.08);
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
-            background: #000000;
+            width: 154px; /* Se dilate en pilule */
+            background: rgba(15, 23, 42, 0.95);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+            transform: scale(1.05);
+        }
+
+        #fdm-download-button:hover .btn-text {
+            opacity: 1;
+            max-width: 100px;
+            margin-left: 10px;
+            margin-right: 8px;
         }
 
         #fdm-download-button svg {
             width: 20px;
             height: 20px;
             stroke: currentColor;
-            stroke-width: 2;
-            transition: transform 0.3s ease;
+            stroke-width: 2.5;
+            flex-shrink: 0;
+            margin-left: 2px; /* Petit ajustement pour centrer visuellement l'icône dans le cercle */
         }
-
+        
         #fdm-download-button:hover svg {
-            animation: fdmBounce 1.5s infinite;
-        }
-
-        @keyframes fdmBounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(2px); }
-        }
-
-        #fdm-download-button.active {
-            background: #000000;
-            transform: scale(0.95);
+            margin-left: 0;
         }
 
         #fdm-dropdown-menu {
             position: fixed;
-            top: 0;
-            left: 0;
-            background: #ffffff;
-            color: #171717;
-            min-width: 200px;
-            max-width: 280px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            color: #0f172a;
+            min-width: 240px;
+            max-width: 320px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
+            border-radius: 14px;
             visibility: hidden;
             opacity: 0;
             flex-direction: column;
             z-index: 2147483647;
             overflow: hidden;
-            padding: 4px;
-            font-family: system-ui, -apple-system, sans-serif;
-            transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-            transform-origin: top center;
-            pointer-events: none;
+            padding: 6px;
+            font-family: 'Inter', system-ui, sans-serif;
+            transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(-8px) scale(0.95);
+            pointer-events: auto;
             display: flex;
         }
 
         .fdm-dropdown-item {
-            padding: 6px 8px;
-            cursor: pointer;
-            font-size: 11px;
+            padding: 12px 14px;
+            cursor: pointer; /* Curseur URL (main) */
+            font-size: 13px;
+            font-weight: 500;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            color: #171717;
+            color: #334155;
             display: flex;
             align-items: center;
-            gap: 6px;
-            border-radius: 6px;
-            transition: background 0.1s ease;
+            gap: 12px;
+            border-radius: 12px;
+            position: relative;
+            user-select: none; /* Empêche la sélection de texte type "curseur I" */
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            animation: fdmSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+            border-left: 0 solid #2563eb;
+        }
+
+        @keyframes fdmSlideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
         .fdm-dropdown-item:hover {
-            background-color: #f3f4f6;
-            color: #000000;
+            background-color: #f1f5f9;
+            color: #2563eb;
+            transform: translateX(8px); /* Effet de glissement prononcé */
+            border-left: 4px solid #2563eb;
+            padding-left: 10px;
         }
 
         .fdm-dropdown-item:active {
-            background-color: #e5e7eb;
+            transform: translateX(4px) scale(0.96);
+            background-color: #e2e8f0;
         }
 
         .fdm-type-badge {
-            background: #2563eb; /* Bleu vif par défaut */
-            color: #ffffff; /* Texte blanc */
+            flex-shrink: 0;
             padding: 2px 6px;
-            border-radius: 4px;
+            border-radius: 5px;
             font-size: 9px;
             font-weight: 800;
-            letter-spacing: 0.5px;
             text-transform: uppercase;
-            min-width: 32px;
+            min-width: 34px;
             text-align: center;
-            display: inline-block;
-            white-space: nowrap;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .fdm-type-badge.manifests { background: #16a34a; color: #ffffff; } /* Vert HLS */
-        .fdm-type-badge.youtube { background: #dc2626; color: #ffffff; } /* Rouge YouTube */
-
         .fdm-empty-msg {
-            padding: 8px 12px;
+            padding: 12px;
             font-size: 11px;
-            color: #94a3b8;
+            color: #64748b;
             text-align: center;
             font-style: italic;
         }
     `;
-    (document.head || document.documentElement).appendChild(style);
+    fdmShadowRoot.appendChild(style);
 }
 
 function createFdmButton() {
     if (fdmButton) return;
-    injectStyles();
+    ensureShadowRoot();
 
-    fdmButton = document.createElement('div');
+    fdmButton = document.createElement('button');
     fdmButton.id = 'fdm-download-button';
 
-    const fabSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    fabSvg.setAttribute('viewBox', '0 0 24 24');
-    fabSvg.setAttribute('fill', 'none');
-    fabSvg.setAttribute('stroke', 'currentColor');
-    fabSvg.setAttribute('stroke-width', '2.5');
-    fabSvg.setAttribute('stroke-linecap', 'round');
-    fabSvg.setAttribute('stroke-linejoin', 'round');
+    const btnIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    btnIcon.setAttribute('viewBox', '0 0 24 24'); btnIcon.setAttribute('fill', 'none'); btnIcon.setAttribute('stroke', 'currentColor');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline'); poly.setAttribute('points', '7 10 12 15 17 10');
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line'); line.setAttribute('x1', '12'); line.setAttribute('y1', '15'); line.setAttribute('x2', '12'); line.setAttribute('y2', '3');
+    btnIcon.appendChild(path); btnIcon.appendChild(poly); btnIcon.appendChild(line);
 
-    const fabPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    fabPath.setAttribute('d', 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4');
-    const fabPolyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    fabPolyline.setAttribute('points', '7 10 12 15 17 10');
-    const fabLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    fabLine.setAttribute('x1', '12'); fabLine.setAttribute('y1', '15');
-    fabLine.setAttribute('x2', '12'); fabLine.setAttribute('y2', '3');
+    const btnText = document.createElement('span');
+    btnText.className = 'btn-text';
+    btnText.textContent = api.i18n.getMessage("btnText") || 'Télécharger';
 
-    fabSvg.appendChild(fabPath); fabSvg.appendChild(fabPolyline); fabSvg.appendChild(fabLine);
-    fdmButton.appendChild(fabSvg);
+    fdmButton.appendChild(btnIcon);
+    fdmButton.appendChild(btnText);
 
-    // Append dropdown menu directly to documentElement to prevent clipping
     dropdownMenu = document.createElement('div');
     dropdownMenu.id = 'fdm-dropdown-menu';
-    dropdownMenu.style.zIndex = '2147483647';
-    document.documentElement.appendChild(dropdownMenu);
+    
+    fdmShadowRoot.appendChild(fdmButton);
+    fdmShadowRoot.appendChild(dropdownMenu);
 
     fdmButton.addEventListener('click', async (e) => {
         e.stopPropagation();
-        clearTimeout(hideTimeout);
-        
         if (dropdownMenu.style.visibility === 'visible') {
-            dropdownMenu.style.visibility = 'hidden';
-            dropdownMenu.style.opacity = '0';
-            dropdownMenu.style.pointerEvents = 'none';
+            hideMenu();
         } else {
-            // Position menu
             const rect = fdmButton.getBoundingClientRect();
-            const menuWidth = 260;
-            
-            let leftPos = rect.left + rect.width / 2 - menuWidth / 2;
-            
-            // Bounds checking
-            if (leftPos + menuWidth > window.innerWidth) leftPos = window.innerWidth - menuWidth - 15;
-            if (leftPos < 10) leftPos = 10;
-
             dropdownMenu.style.top = (rect.bottom + 8) + 'px';
-            dropdownMenu.style.left = leftPos + 'px';
+            dropdownMenu.style.left = Math.min(rect.left, window.innerWidth - 260) + 'px';
             
             await populateDropdown();
             
             dropdownMenu.style.visibility = 'visible';
             dropdownMenu.style.opacity = '1';
-            dropdownMenu.style.pointerEvents = 'auto';
+            dropdownMenu.style.pointerEvents = 'auto'; // FIX: Réactiver les clics
+            dropdownMenu.style.transform = 'translateY(0) scale(1)';
         }
     });
 
@@ -237,99 +253,104 @@ function createFdmButton() {
     fdmButton.addEventListener('mouseleave', () => {
         if (dropdownMenu.style.visibility === 'visible') return;
         hideTimeout = setTimeout(() => {
-            fdmButton.style.display = 'none';
-        }, 300);
+            if (fdmButton) fdmButton.style.display = 'none';
+        }, 800);
     });
 
     document.addEventListener('click', (e) => {
-        if (fdmButton && !fdmButton.contains(e.target) && dropdownMenu && !dropdownMenu.contains(e.target)) {
-            dropdownMenu.style.visibility = 'hidden';
-            dropdownMenu.style.opacity = '0';
-            dropdownMenu.style.pointerEvents = 'none';
-        }
+        // Since it's shadow DOM, we check differently
+        if (!fdmContainer.contains(e.target)) hideMenu();
     });
+}
 
-    document.body.appendChild(fdmButton);
+function hideMenu() {
+    if (!dropdownMenu) return;
+    dropdownMenu.style.visibility = 'hidden';
+    dropdownMenu.style.opacity = '0';
+    dropdownMenu.style.pointerEvents = 'none';
+    dropdownMenu.style.transform = 'translateY(-10px) scale(0.95)';
 }
 
 function positionButton(video) {
     if (!video || !fdmButton) return;
     const rect = video.getBoundingClientRect();
-    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    fdmButton.style.left = (rect.left + scrollLeft + 12) + 'px';
-    fdmButton.style.top = (rect.top + scrollTop + 12) + 'px';
+    
+    // Check if video is visible and has size
+    if (rect.width < 50 || rect.height < 50) return;
+
+    // Fixed positioning relative to the viewport (shadow root handles isolation)
+    fdmButton.style.left = (rect.left + 16) + 'px';
+    fdmButton.style.top = (rect.top + 16) + 'px';
     fdmButton.style.display = 'flex';
 }
 
 async function populateDropdown() {
     if (!dropdownMenu) return;
-    dropdownMenu.textContent = '';
+    dropdownMenu.replaceChildren();
 
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'fdm-empty-msg';
     loadingDiv.textContent = '...';
     dropdownMenu.appendChild(loadingDiv);
 
-    const streams = await api.runtime.sendMessage({ type: "GET_STREAMS" }) || [];
-    dropdownMenu.textContent = '';
+    try {
+        const streams = await api.runtime.sendMessage({ type: "GET_STREAMS" }) || [];
+        dropdownMenu.replaceChildren();
 
-    if (streams.length === 0) {
-        const emptyDiv = document.createElement('div');
-        emptyDiv.className = 'fdm-empty-msg';
-        emptyDiv.textContent = api.i18n.getMessage("emptyMsg") || "Aucun flux détecté";
-        dropdownMenu.appendChild(emptyDiv);
-        return;
+        if (streams.length === 0) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'fdm-empty-msg';
+            emptyDiv.textContent = api.i18n.getMessage("emptyMsg") || "Aucun flux détecté";
+            dropdownMenu.appendChild(emptyDiv);
+            return;
+        }
+
+        streams.forEach((stream, index) => addDropdownItem(stream, index));
+    } catch (e) {
+        console.error("FDM Population Error:", e);
     }
-
-    streams.forEach(stream => addDropdownItem(stream));
 }
 
-function addDropdownItem(stream) {
+function addDropdownItem(stream, index = 0) {
     if (!stream) return;
 
     const item = document.createElement('div');
     item.className = 'fdm-dropdown-item';
+    item.style.animationDelay = (index * 0.04) + 's';
     
-    // Robustly extract format
     let ext = 'FILE';
     if (stream.url) {
         const lowerUrl = stream.url.toLowerCase();
-        if (lowerUrl.includes('.m3u8')) ext = 'M3U8';
+        if (lowerUrl.includes('.m3u8')) ext = 'HLS';
         else if (lowerUrl.includes('.mpd')) ext = 'DASH';
         else if (lowerUrl.includes('.mp4')) ext = 'MP4';
         else if (lowerUrl.includes('.mkv')) ext = 'MKV';
         else if (lowerUrl.includes('.webm')) ext = 'WEBM';
-        else if (lowerUrl.includes('.flv')) ext = 'FLV';
         else if (lowerUrl.includes('.ts')) ext = 'TS';
         else if (lowerUrl.includes('.mp3')) ext = 'MP3';
-        else if (lowerUrl.includes('.aac')) ext = 'AAC';
     }
     
-    // Fallbacks
     if (ext === 'FILE') {
         if (stream.type === 'youtube') ext = 'YT';
         else if (stream.type === 'manifests') ext = 'HLS';
-        else if (stream.type === 'segments') ext = 'SEG';
         else if (stream.type) ext = stream.type.toUpperCase().substring(0, 3);
     }
 
-    // Determine badge color dynamically
-    let badgeColor = '#2563eb'; // Blue default
-    if (stream.type === 'manifests') badgeColor = '#16a34a'; // Green
-    if (stream.type === 'youtube') badgeColor = '#dc2626'; // Red
+    let badgeColor = '#3b82f6';
+    if (stream.type === 'manifests') badgeColor = '#10b981';
+    if (stream.type === 'youtube') badgeColor = '#ef4444';
 
-    const cleanTitle = (stream.title || "Vidéo").trim().substring(0, 30);
-    const fileName = stream.type === 'youtube' ? 'YouTube HD' : cleanTitle;
+    const cleanTitle = (stream.title || "Vidéo").trim();
+    const fileName = stream.type === 'youtube' ? 'YouTube HD Video' : cleanTitle;
 
-    // Secure DOM creation instead of innerHTML
     const badgeSpan = document.createElement('span');
-    badgeSpan.style.cssText = `flex-shrink:0; background:${badgeColor}; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:bold; min-width:24px; text-align:center;`;
+    badgeSpan.className = 'fdm-type-badge';
+    badgeSpan.style.backgroundColor = badgeColor;
+    badgeSpan.style.boxShadow = `0 2px 8px ${badgeColor}44`;
     badgeSpan.textContent = ext;
 
     const nameSpan = document.createElement('span');
-    nameSpan.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis';
-    nameSpan.title = stream.url || '';
+    nameSpan.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.01em;';
     nameSpan.textContent = fileName;
 
     item.appendChild(badgeSpan);
@@ -337,6 +358,11 @@ function addDropdownItem(stream) {
 
     item.addEventListener('click', (e) => {
         e.stopPropagation();
+        
+        // Visual feedback
+        item.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+        item.style.color = '#059669';
+        
         api.runtime.sendMessage({
             type: "SEND_TO_FDM",
             url: stream.url,
@@ -344,62 +370,69 @@ function addDropdownItem(stream) {
             referer: stream.pageUrl || window.location.href,
             isYoutube: stream.type === 'youtube'
         });
-        item.style.backgroundColor = '#dcfce7';
-        item.style.color = '#166534';
+        
+        // We only hide the menu after a delay, but we KEEP the main button visible
         setTimeout(() => {
-            if (dropdownMenu) {
-                dropdownMenu.style.visibility = 'hidden';
-                dropdownMenu.style.opacity = '0';
-                dropdownMenu.style.pointerEvents = 'none';
-            }
-            if (fdmButton) fdmButton.style.display = 'none';
+            hideMenu();
+            // Restore item style for next time
+            item.style.backgroundColor = '';
+            item.style.color = '';
         }, 800);
     });
 
     dropdownMenu.appendChild(item);
 }
 
-// Observe videos
-function searchVideos() {
-    const videos = document.querySelectorAll('video');
-    videos.forEach(v => {
-        if (v.dataset.fdmAttached) return;
-        v.dataset.fdmAttached = "true";
+// --- OPTIMIZED DETECTION ENGINE (2026) ---
+const observerOptions = { childList: true, subtree: true };
 
-        v.addEventListener('mouseenter', async () => {
-            if (!currentVideo) currentVideo = v;
+function handleVideoAttached(video) {
+    if (video.dataset.fdmAttached) return;
+    video.dataset.fdmAttached = "true";
 
-            let hasStreams = false;
-            const videoSrc = v.currentSrc || v.src;
-            if (videoSrc && !videoSrc.startsWith('blob:')) hasStreams = true;
-            else {
-                try {
-                    const streams = await api.runtime.sendMessage({ type: "GET_STREAMS" }) || [];
-                    if (streams.length > 0) hasStreams = true;
-                } catch (e) {}
-            }
+    video.addEventListener('mouseenter', async () => {
+        currentVideo = video;
+        let hasStreams = false;
+        const videoSrc = video.currentSrc || video.src;
+        
+        if (videoSrc && !videoSrc.startsWith('blob:')) hasStreams = true;
+        else {
+            try {
+                const streams = await api.runtime.sendMessage({ type: "GET_STREAMS" }) || [];
+                if (streams.length > 0) hasStreams = true;
+            } catch (e) {}
+        }
 
-            if (hasStreams) {
-                createFdmButton();
-                positionButton(v);
-                clearTimeout(hideTimeout);
-            }
-        });
+        if (hasStreams) {
+            createFdmButton();
+            positionButton(video);
+            clearTimeout(hideTimeout);
+        }
+    });
 
-        v.addEventListener('mouseleave', () => {
-            if (dropdownMenu && dropdownMenu.style.visibility === 'visible') return;
-            hideTimeout = setTimeout(() => {
-                if (fdmButton) fdmButton.style.display = 'none';
-            }, 300);
-        });
+    video.addEventListener('mouseleave', () => {
+        if (dropdownMenu && dropdownMenu.style.visibility === 'visible') return;
+        hideTimeout = setTimeout(() => {
+            if (fdmButton) fdmButton.style.display = 'none';
+        }, 300);
     });
 }
 
-// Initial check and optimized detection
-setTimeout(() => {
-    searchVideos();
-    setInterval(searchVideos, 2000);
-}, 1000);
+const videoObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+            if (node.nodeName === 'VIDEO') {
+                handleVideoAttached(node);
+            } else if (node.querySelectorAll) {
+                node.querySelectorAll('video').forEach(handleVideoAttached);
+            }
+        }
+    }
+});
 
-window.addEventListener('scroll', () => { if (fdmButton && dropdownMenu && dropdownMenu.style.visibility !== 'visible') fdmButton.style.display = 'none'; });
-window.addEventListener('resize', () => { if (fdmButton && dropdownMenu && dropdownMenu.style.visibility !== 'visible') fdmButton.style.display = 'none'; });
+// Initial scan
+document.querySelectorAll('video').forEach(handleVideoAttached);
+videoObserver.observe(document.body, observerOptions);
+
+window.addEventListener('scroll', () => { if (fdmButton && dropdownMenu && dropdownMenu.style.visibility !== 'visible') fdmButton.style.display = 'none'; }, { passive: true });
+window.addEventListener('resize', () => { if (fdmButton && dropdownMenu && dropdownMenu.style.visibility !== 'visible') fdmButton.style.display = 'none'; }, { passive: true });

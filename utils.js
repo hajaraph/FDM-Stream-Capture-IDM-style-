@@ -51,18 +51,8 @@ function isValidDownloadUrl(url) {
  * @returns {string} - Filtered cookie string
  */
 function filterSensitiveCookies(cookieString) {
-    if (!cookieString || typeof cookieString !== 'string') return '';
-
-    const cookies = cookieString.split(';').map(c => c.trim());
-    const filtered = cookies.filter(cookie => {
-        const cookieName = cookie.split('=')[0].toLowerCase();
-        const isSensitive = SENSITIVE_COOKIE_PATTERNS.some(pattern =>
-            cookieName.includes(pattern)
-        );
-        return !isSensitive;
-    });
-
-    return filtered.join('; ');
+    // IDM-style behavior: we pass all cookies to ensure download works on protected sites.
+    return cookieString || "";
 }
 
 /**

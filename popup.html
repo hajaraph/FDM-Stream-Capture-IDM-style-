@@ -6,202 +6,221 @@
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 
         :root {
-            --bg: #fafafa;
-            --surface: #ffffff;
-            --border: #eaeaea;
-            --text: #171717;
-            --text-secondary: #737373;
-            --text-muted: #a3a3a3;
-            --line: #e5e5e5;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
-            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
-            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+            --bg: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.85);
+            --border: rgba(226, 232, 240, 0.8);
+            --text: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --accent: #2563eb;
+            --accent-soft: rgba(37, 99, 235, 0.1);
+            --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body {
-            width: 360px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+            width: 380px;
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
             background: var(--bg);
             color: var(--text);
-            min-height: 200px;
-            max-height: 500px;
-            overflow-x: hidden;
+            max-height: 520px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         header {
-            padding: 14px 16px;
+            padding: 16px;
+            background: var(--surface);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .brand { display: flex; align-items: center; gap: 12px; }
+
+        .logo {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+        }
+
+        .logo svg { width: 18px; height: 18px; color: white; }
+
+        #header-title { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+
+        .search-container {
+            padding: 10px 16px;
             background: var(--surface);
             border-bottom: 1px solid var(--border);
         }
 
-        .brand { display: flex; align-items: center; gap: 10px; }
+        .search-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
 
-        .logo {
-            width: 28px; height: 28px;
-            background: #171717;
+        .search-wrapper svg {
+            position: absolute;
+            left: 10px;
+            width: 14px;
+            height: 14px;
+            color: var(--text-muted);
+        }
+
+        #stream-search {
+            width: 100%;
+            padding: 8px 12px 8px 32px;
             border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border);
+            background: white;
+            font-size: 12px;
+            outline: none;
+            transition: all 0.2s ease;
         }
 
-        .logo svg { width: 15px; height: 15px; color: white; }
-
-        #header-title { font-size: 14px; font-weight: 600; letter-spacing: -0.2px; }
-
-        .icon-btn {
-            width: 28px; height: 28px;
-            display: flex; align-items: center; justify-content: center;
-            background: none; border: none; cursor: pointer;
-            color: var(--text-muted); border-radius: 6px; transition: all 0.15s ease;
+        #stream-search:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
         }
-
-        .icon-btn:hover { background: var(--bg); color: var(--text); }
-        .icon-btn svg { width: 14px; height: 14px; }
 
         #stream-list {
-            padding: 16px 14px 8px 14px;
-            max-height: 340px;
+            flex: 1;
+            padding: 12px;
             overflow-y: auto;
+            min-height: 200px;
         }
 
-        #stream-list::-webkit-scrollbar { width: 4px; }
-        #stream-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+        #stream-list::-webkit-scrollbar { width: 5px; }
+        #stream-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-        .tl-section { position: relative; margin-bottom: 12px; }
+        .tl-section { margin-bottom: 20px; }
 
         .tl-label {
-            font-size: 10px; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.6px; color: var(--text-muted);
-            padding: 0 12px 8px 32px;
+            font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.05em; color: var(--text-muted);
+            margin-bottom: 10px; padding-left: 4px;
         }
-
-        .tl-line {
-            position: absolute; left: 18px; top: 28px; bottom: 0;
-            width: 2px; background: var(--line); border-radius: 1px;
-        }
-
-        .tl-section:last-child .tl-line { display: none; }
 
         .tl-item {
-            position: relative; padding: 0 0 12px 40px;
+            margin-bottom: 10px;
+            animation: slideIn 0.3s var(--ease) both;
         }
 
-        .tl-dot {
-            position: absolute; left: 12px; top: 4px;
-            width: 14px; height: 14px; border-radius: 50%;
-            background: var(--surface); border: 2.5px solid var(--text-muted); z-index: 1;
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-
-        .tl-item[data-type="youtube"] .tl-dot { border-color: #ef4444; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1); }
-        .tl-item[data-type="manifests"] .tl-dot { border-color: #10b981; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1); }
-        .tl-item[data-type="videos"] .tl-dot { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
-        .tl-item[data-type="segments"] .tl-dot { border-color: #f59e0b; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.1); }
 
         .tl-card {
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: 10px; padding: 10px 12px;
-            transition: all 0.2s var(--ease); box-shadow: var(--shadow-sm);
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            transition: all 0.2s var(--ease);
+            position: relative;
+            overflow: hidden;
         }
 
-        .tl-card:hover { border-color: var(--line); box-shadow: var(--shadow-md); transform: translateX(2px); }
+        .tl-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
 
-        .tl-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+        .tl-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 
-        .tl-type { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
-        .tl-time { font-size: 9px; color: var(--text-muted); }
+        .tl-type-badge {
+            font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
+            color: white; text-transform: uppercase;
+        }
+
+        .tl-type-badge.youtube { background: #ef4444; }
+        .tl-type-badge.manifests { background: #10b981; }
+        .tl-type-badge.videos { background: #3b82f6; }
+        .tl-type-badge.segments { background: #f59e0b; }
+        .tl-type-badge.others { background: #64748b; }
+
+        .tl-time { font-size: 10px; color: var(--text-muted); font-weight: 500; }
 
         .tl-title {
-            font-size: 12px; font-weight: 500; color: var(--text);
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
+            font-size: 13px; font-weight: 600; color: var(--text);
+            margin-bottom: 4px; line-height: 1.4;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+            line-clamp: 2;
         }
 
         .tl-url {
             font-size: 9px; color: var(--text-muted);
-            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-family: inherit;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
         }
 
-        .tl-actions { display: flex; gap: 4px; margin-top: 8px; }
+        .tl-actions { display: flex; gap: 8px; margin-top: 10px; }
 
         .tl-btn {
-            flex: 1; padding: 6px 8px; border-radius: 6px; border: none;
-            font-size: 10px; font-weight: 500; cursor: pointer;
-            transition: all 0.15s ease; font-family: inherit;
-            display: flex; align-items: center; justify-content: center; gap: 3px;
+            flex: 1; padding: 8px; border-radius: 8px; border: none;
+            font-size: 11px; font-weight: 600; cursor: pointer;
+            transition: all 0.15s ease; display: flex; align-items: center; justify-content: center; gap: 6px;
         }
 
-        .tl-btn svg { width: 11px; height: 11px; }
+        .tl-btn svg { width: 14px; height: 14px; }
 
-        .tl-btn-dl { background: #171717; color: white; }
-        .tl-btn-dl:hover { background: #333; }
+        .tl-btn-dl { background: #0f172a; color: white; }
+        .tl-btn-dl:hover { background: #1e293b; box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2); }
 
-        .tl-btn-cp { background: var(--bg); color: var(--text-secondary); }
-        .tl-btn-cp:hover { background: var(--border); color: var(--text); }
+        .tl-btn-cp { background: #f1f5f9; color: #475569; }
+        .tl-btn-cp:hover { background: #e2e8f0; color: #1e293b; }
 
         .footer {
-            padding: 10px 14px; border-top: 1px solid var(--border);
-            background: var(--surface); display: flex; gap: 5px;
+            padding: 14px 16px; border-top: 1px solid var(--border);
+            background: var(--surface); backdrop-filter: blur(12px);
+            display: flex; gap: 8px;
         }
 
         .btn-footer {
-            flex: 1; padding: 8px 10px; border-radius: 8px;
-            border: 1px solid var(--border); background: var(--surface);
-            color: var(--text-secondary); font-size: 10px; font-weight: 500;
-            cursor: pointer; transition: all 0.15s ease; font-family: inherit; text-align: center;
+            flex: 1; padding: 10px; border-radius: 10px;
+            border: 1px solid var(--border); background: white;
+            color: var(--text-secondary); font-size: 11px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease;
         }
 
-        .btn-footer:hover { border-color: var(--text-muted); }
-        .btn-footer.solid { background: #171717; color: white; border-color: #171717; }
-        .btn-footer.solid:hover { background: #333; }
+        .btn-footer:hover { border-color: var(--text-muted); background: #f8fafc; }
+        .btn-footer.solid { background: #0f172a; color: white; border-color: #0f172a; }
+        .btn-footer.solid:hover { background: #1e293b; }
 
-        .empty { text-align: center; padding: 44px 20px; color: var(--text-muted); }
-        .empty svg { width: 36px; height: 36px; margin-bottom: 10px; opacity: 0.25; }
-        .empty p { font-size: 12px; line-height: 1.5; }
+        .empty { text-align: center; padding: 60px 40px; color: var(--text-muted); }
+        .empty svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.15; }
+        .empty p { font-size: 13px; font-weight: 500; }
 
-        /* Checkbox Wrapper Styling (Robust for Firefox) */
-        .checkbox-wrapper {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            margin-right: 8px;
+        /* Icon Button */
+        .icon-btn {
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            background: none; border: none; cursor: pointer;
+            color: var(--text-secondary); border-radius: 8px; transition: all 0.15s;
         }
+        .icon-btn:hover { background: var(--accent-soft); color: var(--accent); }
 
-        .cb-batch {
-            position: absolute;
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
+        /* Custom Checkbox */
+        .checkbox-wrapper { display: flex; align-items: center; cursor: pointer; }
+        .cb-batch { position: absolute; opacity: 0; width: 0; }
         .cb-visual {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #d4d4d4;
-            border-radius: 5px;
-            background-color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.15s ease;
+            width: 20px; height: 20px; border: 2px solid #cbd5e1; border-radius: 6px;
+            background-color: white; display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s;
         }
-
-        .cb-batch:checked + .cb-visual {
-            background-color: #171717;
-            border-color: #171717;
-        }
-
-        .cb-batch:checked + .cb-visual::after {
-            content: "✓";
-            color: white;
-            font-size: 13px;
-            font-weight: bold;
-            line-height: 1;
-        }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
-        .tl-item { animation: fadeIn 0.3s var(--ease); }
+        .cb-batch:checked + .cb-visual { background-color: var(--accent); border-color: var(--accent); }
+        .cb-batch:checked + .cb-visual::after { content: "✓"; color: white; font-size: 14px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -216,13 +235,23 @@
             </div>
             <span id="header-title">FDM Stream Capture</span>
         </div>
-        <button id="open-settings" class="icon-btn" title="Settings">
+        <button id="open-settings" class="icon-btn" title="Paramètres">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
         </button>
     </header>
+
+    <div class="search-container">
+        <div class="search-wrapper">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="stream-search" placeholder="Rechercher un flux...">
+        </div>
+    </div>
 
     <div id="stream-list"></div>
 

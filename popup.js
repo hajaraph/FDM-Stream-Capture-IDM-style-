@@ -1,3 +1,5 @@
+let allStreams = [];
+
 async function loadStreams() {
     try {
         const headerTitle = document.getElementById('header-title');
@@ -9,60 +11,15 @@ async function loadStreams() {
         const currentTab = tabs[0];
         const tabId = currentTab.id;
         const currentUrl = currentTab.url || "";
-        const streamList = document.getElementById('stream-list');
 
-        const streams = await api.runtime.sendMessage({ type: "GET_STREAMS", tabId: tabId, tabUrl: currentUrl, tabTitle: currentTab.title }) || [];
-
-        streamList.replaceChildren();
-
-        if (streams.length === 0) {
-            streamList.replaceChildren(); // Clear list first safely
-            const emptyDiv = document.createElement('div');
-            emptyDiv.className = 'empty';
-            
-            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            svg.setAttribute("viewBox", "0 0 24 24");
-            svg.setAttribute("fill", "none");
-            svg.setAttribute("stroke", "currentColor");
-            svg.setAttribute("stroke-width", "1.5");
-            const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-            poly.setAttribute("points", "5 3 19 12 5 21 5 3");
-            svg.appendChild(poly);
-            
-            const p = document.createElement('p');
-            p.textContent = api.i18n.getMessage("emptyMsg") || "Aucun flux détecté";
-            
-            emptyDiv.appendChild(svg);
-            emptyDiv.appendChild(p);
-            streamList.appendChild(emptyDiv);
-            return;
-        }
-
-        const groups = {
-            'youtube': streams.filter(s => s.type === 'youtube'),
-            'manifests': streams.filter(s => s.type === 'manifests'),
-            'videos': streams.filter(s => s.type === 'videos'),
-            'segments': streams.filter(s => s.type === 'segments')
-        };
-
-        const others = streams.filter(s => !['youtube', 'manifests', 'videos', 'segments'].includes(s.type));
-
-        const groupConfig = [
-            { key: 'youtube', label: api.i18n.getMessage("groupYoutube") || "YouTube", items: groups.youtube },
-            { key: 'manifests', label: api.i18n.getMessage("groupManifests") || "HLS/DASH", items: groups.manifests },
-            { key: 'videos', label: api.i18n.getMessage("groupVideos") || "Vidéos", items: groups.videos },
-            { key: 'segments', label: api.i18n.getMessage("groupSegments") || "Segments", items: groups.segments },
-            { key: 'others', label: api.i18n.getMessage("groupOthers") || "Autres", items: others }
-        ].filter(g => g.items.length > 0);
-
-        groupConfig.forEach(group => addTimelineSection(streamList, group.label, group.items, group.key));
-
-        attachEvents();
+        allStreams = await api.runtime.sendMessage({ type: "GET_STREAMS", tabId: tabId, tabUrl: currentUrl, tabTitle: currentTab.title }) || [];
+        
+        renderStreams(allStreams);
 
     } catch (err) {
         console.error("Popup Error:", err);
         const listDiv = document.getElementById('stream-list');
-        listDiv.textContent = ''; // Clear safely
+        listDiv.textContent = '';
         
         const emptyDiv = document.createElement('div');
         emptyDiv.className = 'empty';
@@ -73,27 +30,63 @@ async function loadStreams() {
     }
 }
 
+function renderStreams(streams) {
+    const streamList = document.getElementById('stream-list');
+    streamList.replaceChildren();
+
+    if (streams.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty';
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("fill", "none");
+        svg.setAttribute("stroke", "currentColor");
+        svg.setAttribute("stroke-width", "1.5");
+        const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        poly.setAttribute("points", "5 3 19 12 5 21 5 3");
+        svg.appendChild(poly);
+        const p = document.createElement('p');
+        p.textContent = api.i18n.getMessage("emptyMsg") || "Aucun flux détecté";
+        emptyDiv.appendChild(svg);
+        emptyDiv.appendChild(p);
+        streamList.appendChild(emptyDiv);
+        return;
+    }
+
+    const groups = {
+        'youtube': streams.filter(s => s.type === 'youtube'),
+        'manifests': streams.filter(s => s.type === 'manifests'),
+        'videos': streams.filter(s => s.type === 'videos'),
+        'segments': streams.filter(s => s.type === 'segments')
+    };
+
+    const others = streams.filter(s => !['youtube', 'manifests', 'videos', 'segments'].includes(s.type));
+
+    const groupConfig = [
+        { key: 'youtube', label: api.i18n.getMessage("groupYoutube") || "YouTube", items: groups.youtube },
+        { key: 'manifests', label: api.i18n.getMessage("groupManifests") || "HLS/DASH", items: groups.manifests },
+        { key: 'videos', label: api.i18n.getMessage("groupVideos") || "Vidéos", items: groups.videos },
+        { key: 'segments', label: api.i18n.getMessage("groupSegments") || "Segments", items: groups.segments },
+        { key: 'others', label: api.i18n.getMessage("groupOthers") || "Autres", items: others }
+    ].filter(g => g.items.length > 0);
+
+    groupConfig.forEach(group => addTimelineSection(streamList, group.label, group.items, group.key));
+    attachEvents();
+}
+
 function addTimelineSection(container, title, items) {
     const section = document.createElement('div');
     section.className = 'tl-section';
-
-    const line = document.createElement('div');
-    line.className = 'tl-line';
-    section.appendChild(line);
 
     const label = document.createElement('div');
     label.className = 'tl-label';
     label.textContent = `${title} · ${items.length}`;
     section.appendChild(label);
 
-    items.forEach(stream => {
+    items.forEach((stream, index) => {
         const item = document.createElement('div');
         item.className = 'tl-item';
-        item.setAttribute('data-type', stream.type || 'others');
-
-        const dot = document.createElement('div');
-        dot.className = 'tl-dot';
-        item.appendChild(dot);
+        item.style.animationDelay = `${index * 0.05}s`;
 
         const card = document.createElement('div');
         card.className = 'tl-card';
@@ -101,11 +94,11 @@ function addTimelineSection(container, title, items) {
         const header = document.createElement('div');
         header.className = 'tl-card-header';
 
-        const type = document.createElement('span');
-        type.className = 'tl-type';
+        const badge = document.createElement('span');
         const typeLabels = { youtube: 'YT', manifests: 'HLS', videos: 'MP4', segments: 'SEG', others: 'FILE' };
-        type.textContent = typeLabels[stream.type] || 'FILE';
-        header.appendChild(type);
+        badge.className = `tl-type-badge ${stream.type || 'others'}`;
+        badge.textContent = typeLabels[stream.type] || 'FILE';
+        header.appendChild(badge);
 
         const time = document.createElement('span');
         time.className = 'tl-time';
@@ -121,7 +114,7 @@ function addTimelineSection(container, title, items) {
 
         const titleText = document.createElement('div');
         titleText.className = 'tl-title';
-        titleText.textContent = stream.type === 'youtube' ? 'YouTube HD' : (stream.title || "Vidéo").trim().substring(0, 40);
+        titleText.textContent = stream.type === 'youtube' ? 'YouTube HD Video' : (stream.title || "Vidéo détectée").trim();
         titleText.title = stream.title || '';
         card.appendChild(titleText);
 
@@ -141,38 +134,27 @@ function addTimelineSection(container, title, items) {
         dlBtn.setAttribute('data-referer', stream.pageUrl || '');
         dlBtn.setAttribute('data-youtube', stream.type === 'youtube' ? "true" : "false");
         
-        // Create SVG safely
         const dlSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        dlSvg.setAttribute("viewBox", "0 0 24 24");
-        dlSvg.setAttribute("fill", "none");
-        dlSvg.setAttribute("stroke", "currentColor");
-        dlSvg.setAttribute("stroke-width", "2.5");
-        const dlPath1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        dlPath1.setAttribute("d", "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4");
-        const dlPoly1 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-        dlPoly1.setAttribute("points", "7 10 12 15 17 10");
-        const dlLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        dlLine.setAttribute("x1", "12"); dlLine.setAttribute("y1", "15");
-        dlLine.setAttribute("x2", "12"); dlLine.setAttribute("y2", "3");
-        dlSvg.appendChild(dlPath1); dlSvg.appendChild(dlPoly1); dlSvg.appendChild(dlLine);
+        dlSvg.setAttribute("viewBox", "0 0 24 24"); dlSvg.setAttribute("fill", "none"); dlSvg.setAttribute("stroke", "currentColor"); dlSvg.setAttribute("stroke-width", "2.5");
+        const dlPath = document.createElementNS("http://www.w3.org/2000/svg", "path"); dlPath.setAttribute("d", "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4");
+        const dlPoly = document.createElementNS("http://www.w3.org/2000/svg", "polyline"); dlPoly.setAttribute("points", "7 10 12 15 17 10");
+        const dlLine = document.createElementNS("http://www.w3.org/2000/svg", "line"); dlLine.setAttribute("x1", "12"); dlLine.setAttribute("y1", "15"); dlLine.setAttribute("x2", "12"); dlLine.setAttribute("y2", "3");
+        dlSvg.appendChild(dlPath); dlSvg.appendChild(dlPoly); dlSvg.appendChild(dlLine);
+        
+        const dlLabel = document.createElement('span');
+        dlLabel.textContent = 'FDM';
         dlBtn.appendChild(dlSvg);
+        dlBtn.appendChild(dlLabel);
         actions.appendChild(dlBtn);
 
         const cpBtn = document.createElement('button');
         cpBtn.className = 'tl-btn tl-btn-cp';
         cpBtn.setAttribute('data-url', stream.url);
         
-        // Create SVG safely
         const cpSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        cpSvg.setAttribute("viewBox", "0 0 24 24");
-        cpSvg.setAttribute("fill", "none");
-        cpSvg.setAttribute("stroke", "currentColor");
-        cpSvg.setAttribute("stroke-width", "2.5");
-        const cpRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        cpRect.setAttribute("x", "9"); cpRect.setAttribute("y", "9");
-        cpRect.setAttribute("width", "13"); cpRect.setAttribute("height", "13"); cpRect.setAttribute("rx", "2");
-        const cpPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        cpPath.setAttribute("d", "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1");
+        cpSvg.setAttribute("viewBox", "0 0 24 24"); cpSvg.setAttribute("fill", "none"); cpSvg.setAttribute("stroke", "currentColor"); cpSvg.setAttribute("stroke-width", "2.5");
+        const cpRect = document.createElementNS("http://www.w3.org/2000/svg", "rect"); cpRect.setAttribute("x", "9"); cpRect.setAttribute("y", "9"); cpRect.setAttribute("width", "13"); cpRect.setAttribute("height", "13"); cpRect.setAttribute("rx", "2");
+        const cpPath = document.createElementNS("http://www.w3.org/2000/svg", "path"); cpPath.setAttribute("d", "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1");
         cpSvg.appendChild(cpRect); cpSvg.appendChild(cpPath);
         cpBtn.appendChild(cpSvg);
         actions.appendChild(cpBtn);
@@ -204,32 +186,26 @@ function attachEvents() {
         btn.onclick = (e) => {
             const target = e.target.closest('.tl-btn-cp');
             navigator.clipboard.writeText(target.getAttribute('data-url')).then(() => {
-                // Show Checkmark (Secure)
-                target.textContent = '';
-                const checkSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-                checkSvg.setAttribute("viewBox", "0 0 24 24"); checkSvg.setAttribute("fill", "none"); checkSvg.setAttribute("stroke", "currentColor"); checkSvg.setAttribute("stroke-width", "2.5");
-                const checkPath = document.createElementNS("http://www.w3.org/2000/svg", "path"); checkPath.setAttribute("d", "M20 6L9 17l-5-5");
-                checkSvg.appendChild(checkPath);
-                target.appendChild(checkSvg);
-
-                setTimeout(() => {
-                    // Restore Copy Icon (Secure)
-                    target.textContent = '';
-                    const cpSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-                    cpSvg.setAttribute("viewBox", "0 0 24 24"); cpSvg.setAttribute("fill", "none"); cpSvg.setAttribute("stroke", "currentColor"); cpSvg.setAttribute("stroke-width", "2.5");
-                    const cpRect = document.createElementNS("http://www.w3.org/2000/svg", "rect"); cpRect.setAttribute("x", "9"); cpRect.setAttribute("y", "9"); cpRect.setAttribute("width", "13"); cpRect.setAttribute("height", "13"); cpRect.setAttribute("rx", "2");
-                    const cpPath = document.createElementNS("http://www.w3.org/2000/svg", "path"); cpPath.setAttribute("d", "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1");
-                    cpSvg.appendChild(cpRect); cpSvg.appendChild(cpPath);
-                    target.appendChild(cpSvg);
-                }, 1500);
+                const originalSvg = target.firstElementChild.outerHTML;
+                target.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                setTimeout(() => target.innerHTML = originalSvg, 1500);
             });
         };
     });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const headerTitle = document.getElementById('header-title');
-    if (headerTitle) headerTitle.textContent = api.i18n.getMessage("popupTitle") || "FDM Stream Capture";
+    const searchInput = document.getElementById('stream-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const filtered = allStreams.filter(s => 
+                (s.title && s.title.toLowerCase().includes(query)) || 
+                (s.url && s.url.toLowerCase().includes(query))
+            );
+            renderStreams(filtered);
+        });
+    }
 
     const settingsBtn = document.getElementById('open-settings');
     if (settingsBtn) {
@@ -257,11 +233,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnShowCart) {
         btnShowCart.addEventListener('click', async () => {
-            try {
-                const log = await api.runtime.sendMessage({ type: "GET_CATCH_LOG" }) || [];
-                batchItems = log.map(s => ({ url: s.url, title: s.title || "Vidéo", type: s.type || 'MEDIA', referer: s.pageUrl || "" }));
-                renderBatchList(batchItems, true);
-            } catch (e) { }
+            const log = await api.runtime.sendMessage({ type: "GET_CATCH_LOG" }) || [];
+            batchItems = log.map(s => ({ url: s.url, title: s.title || "Vidéo", type: s.type || 'MEDIA', referer: s.pageUrl || "" }));
+            renderBatchList(batchItems, true);
         });
     }
 
@@ -310,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderBatchList(items, isCart = false) {
         const streamList = document.getElementById('stream-list');
-        streamList.replaceChildren(); // Secure replacement for innerHTML = ''
+        streamList.replaceChildren();
         if (btnScan) btnScan.style.display = 'none';
         if (btnShowCart) btnShowCart.style.display = 'none';
         if (btnDlSelected) btnDlSelected.style.display = 'block';
@@ -318,7 +292,6 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (btnClearCart) btnClearCart.style.display = 'none';
 
         if (items.length === 0) {
-            streamList.textContent = ''; // Clear safely
             const emptyDiv = document.createElement('div');
             emptyDiv.className = 'empty';
             const p = document.createElement('p');
@@ -330,47 +303,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const section = document.createElement('div');
         section.className = 'tl-section';
-        const line = document.createElement('div');
-        line.className = 'tl-line';
-        section.appendChild(line);
-
         const label = document.createElement('div');
         label.className = 'tl-label';
         label.textContent = `${api.i18n.getMessage("cartSelectMsg") || "Sélection"} · ${items.length}`;
         section.appendChild(label);
-
-        const toggleRow = document.createElement('div');
-        toggleRow.style.cssText = 'display:flex;align-items:center;padding:6px 12px 14px 40px;gap:8px;background:var(--bg);margin:0 -12px 8px -12px;border-bottom:1px solid var(--border);';
-        
-        // Wrapper for custom checkbox
-        const tcWrapper = document.createElement('label');
-        tcWrapper.className = 'checkbox-wrapper';
-        
-        const tc = document.createElement('input');
-        tc.type = 'checkbox';
-        tc.checked = true;
-        tc.id = 'toggle-all';
-        tc.className = 'cb-batch'; // Use same class for styling logic
-        
-        tc.addEventListener('change', (e) => {
-            const isChecked = e.target.checked;
-            document.querySelectorAll('.cb-batch').forEach(cbItem => cbItem.checked = isChecked);
-            updateCount();
-        });
-        
-        const tcVisual = document.createElement('span');
-        tcVisual.className = 'cb-visual';
-        
-        tcWrapper.appendChild(tc);
-        tcWrapper.appendChild(tcVisual);
-        toggleRow.appendChild(tcWrapper);
-        
-        const toggleLabel = document.createElement('span');
-        toggleLabel.textContent = api.i18n.getMessage("cartToggleAll") || "Tout cocher";
-        toggleLabel.style.cssText = 'font-size:12px;font-weight:500;color:var(--text);cursor:pointer;user-select:none;';
-        toggleRow.appendChild(toggleLabel);
-        
-        section.appendChild(toggleRow);
 
         const updateCount = () => {
             const c = document.querySelectorAll('.cb-batch:checked').length;
@@ -380,68 +316,34 @@ document.addEventListener('DOMContentLoaded', () => {
         items.forEach(item => {
             const el = document.createElement('div');
             el.className = 'tl-item';
-            el.setAttribute('data-type', item.type === 'VIDEO' ? 'videos' : 'others');
-
-            const dot = document.createElement('div');
-            dot.className = 'tl-dot';
-            el.appendChild(dot);
-
             const card = document.createElement('div');
             card.className = 'tl-card';
             card.style.cursor = 'pointer';
 
             const row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.alignItems = 'center';
-            row.style.gap = '8px';
+            row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.gap = '12px';
 
-            // Wrapper for custom checkbox
             const cbWrapper = document.createElement('label');
             cbWrapper.className = 'checkbox-wrapper';
-            
-            const cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.className = 'cb-batch';
-            cb.value = item.url;
-            cb.checked = true;
+            const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'cb-batch'; cb.value = item.url; cb.checked = true;
             cb.addEventListener('change', updateCount);
-            
-            const cbVisual = document.createElement('span');
-            cbVisual.className = 'cb-visual';
-            
-            cbWrapper.appendChild(cb);
-            cbWrapper.appendChild(cbVisual);
+            const cbVisual = document.createElement('span'); cbVisual.className = 'cb-visual';
+            cbWrapper.appendChild(cb); cbWrapper.appendChild(cbVisual);
             row.appendChild(cbWrapper);
 
             const info = document.createElement('div');
-            info.style.flex = '1';
-            info.style.overflow = 'hidden';
-            const t = document.createElement('div');
-            t.className = 'tl-title';
-            t.textContent = item.title;
-            info.appendChild(t);
-            const u = document.createElement('div');
-            u.className = 'tl-url';
-            u.textContent = item.url;
-            info.appendChild(u);
+            info.style.flex = '1'; info.style.overflow = 'hidden';
+            const t = document.createElement('div'); t.className = 'tl-title'; t.textContent = item.title; info.appendChild(t);
+            const u = document.createElement('div'); u.className = 'tl-url'; u.textContent = item.url; info.appendChild(u);
             row.appendChild(info);
 
             card.appendChild(row);
-            card.addEventListener('click', (e) => {
-                if (e.target.tagName !== 'INPUT') { cb.checked = !cb.checked; updateCount(); }
-            });
-
+            card.onclick = (e) => { if (e.target.tagName !== 'INPUT') { cb.checked = !cb.checked; updateCount(); } };
             el.appendChild(card);
             section.appendChild(el);
         });
 
         streamList.appendChild(section);
-
-        document.getElementById('toggle-all').addEventListener('change', (e) => {
-            document.querySelectorAll('.cb-batch').forEach(cb => cb.checked = e.target.checked);
-            updateCount();
-        });
-
         updateCount();
     }
 

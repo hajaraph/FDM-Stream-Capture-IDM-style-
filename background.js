@@ -125,10 +125,9 @@ function persistNow() {
     api.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => {});
 }
 
-// --- INTELLIGENT NAMING ENGINE ---
+// --- INTELLIGENT NAMING ENGINE (Premium) ---
 function getSmartFileName(rawTitle, url, isYoutube = false) {
     if (!rawTitle || rawTitle === "Vidéo détectée" || rawTitle === "Vidéo cachée") {
-        // Tenter d'extraire du nom de fichier dans l'URL si le titre est générique
         try {
             const urlPath = new URL(url).pathname;
             const fileName = urlPath.substring(urlPath.lastIndexOf('/') + 1);
@@ -138,42 +137,50 @@ function getSmartFileName(rawTitle, url, isYoutube = false) {
         } catch (e) {}
     }
 
-    let name = rawTitle || "Video_Stream";
+    let name = rawTitle || "Media_Stream";
 
-    // 1. Supprimer les noms de sites communs et séparateurs à la fin
-    // Ex: "Movie Title - Netflix" -> "Movie Title"
+    // 1. Nettoyage des titres de sites et séparateurs
     const siteSeparators = [" - ", " | ", " — ", " : ", " » ", " « ", " // "];
     for (const sep of siteSeparators) {
         if (name.includes(sep)) {
             const parts = name.split(sep);
-            // On garde généralement la partie la plus longue ou la première
-            if (parts[0].length > 5) name = parts[0];
-            else if (parts.length > 1) name = parts[1];
+            // On prend la partie la plus descriptive (souvent la première ou la plus longue)
+            name = parts.reduce((a, b) => a.length > b.length ? a : b);
         }
     }
 
-    // 2. Nettoyage des mots "parasites" de SEO/Streaming (Case Insensitive)
-    const junkWords = [
+    // 2. Suppresseur de "bruit" SEO et technique (Premium)
+    const junkPatterns = [
         /watch\s+/gi, /\s+online/gi, /\s+streaming/gi, /\s+free/gi, 
         /full\s+episode/gi, /official\s+video/gi, /official\s+trailer/gi,
-        /\s+hd/gi, /\s+1080p/gi, /\s+720p/gi, /\[.*?\]/g, /\(.*?\)/g
+        /\s+hd/gi, /\s+1080p/gi, /\s+720p/gi, /\s+4k/gi, /\[.*?\]/g, /\(.*?\)/g,
+        /direct\s+download/gi, /vf/gi, /vostfr/gi, /sub\s+it/gi, /x264/gi, /x265/gi, /h264/gi, /bluray/gi
     ];
     
-    junkWords.forEach(regex => {
+    junkPatterns.forEach(regex => {
         name = name.replace(regex, "");
     });
 
-    // 3. Caractères interdits Windows
-    name = name.replace(/[\\/:*?"<>|]/g, "-").trim();
+    // 3. Formatage final (caractères autorisés)
+    name = name.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, " ").trim();
     
-    // 4. Fallback si vide après nettoyage
-    if (!name || name.length < LIMITS.MIN_NAME_LENGTH) name = "FDM_Download_" + Math.floor(Math.random() * LIMITS.MAX_FILENAME_RANDOM_SUFFIX);
+    if (!name || name.length < 3) {
+        name = "FDM_Download_" + Math.random().toString(36).substring(2, 7);
+    }
 
-    // 5. Gestion de l'extension
-    let extMatch = url.match(/\.(mp4|mkv|avi|webm|m3u8|ts|mp3|flac|wav|jpg|png|gif|pdf|zip|rar)(?:\?|$)/i);
-    let ext = extMatch ? extMatch[1].toLowerCase() : (isYoutube ? "mp4" : "mp4");
+    // 4. Déduction de l'extension
+    let ext = "mp4"; // Default
+    const extensions = ["mp4", "mkv", "avi", "webm", "m3u8", "ts", "mp3", "flac", "wav", "pdf", "zip"];
+    const lowerUrl = url.toLowerCase();
     
-    if (url.includes('.m3u8') || url.includes('.m3u')) ext = "m3u8";
+    for (const e of extensions) {
+        if (lowerUrl.includes("." + e)) {
+            ext = e;
+            break;
+        }
+    }
+    
+    if (isYoutube) ext = "mp4";
 
     if (!name.toLowerCase().endsWith('.' + ext)) {
         name += '.' + ext;
@@ -222,25 +229,20 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
             handshake: { api_version: "1", browser: "Firefox" }
         });
 
-        // --- SMART NAMING (IDM STYLE) ---
+        // --- SMART NAMING (Standardized for FDM) ---
         let downloadObj = {
             url: url,
             filename: cleanName,
-            fileName: cleanName,
-            suggestedName: cleanName,
-            name: cleanName,
-            comment: cleanName, // FDM reads this for title sometimes
             httpReferer: referer,
-            httpCookies: safeCookies, // Use filtered cookies
-            userAgent: navigator.userAgent,
-            originalUrl: url
+            httpCookies: safeCookies,
+            userAgent: navigator.userAgent
         };
 
-        // Permet a FDM de fusionner Audio/Video sur les plateformes connues
-        if (isYoutube || url.includes(".m3u8")) {
+        // Paramètres spécifiques pour les flux complexes
+        if (isYoutube || url.includes(".m3u8") || url.includes(".mpd")) {
             downloadObj.youtubeChannelVideosDownload = 0;
             downloadObj.videoUrl = url;
-            downloadObj.audioUrl = ""; // Force l'utilisation du parser interne pour fusion audio/video
+            downloadObj.audioUrl = ""; 
         }
 
         // On utilise TOUJOURS le téléchargement direct (IDM style)
@@ -638,12 +640,13 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
         })();
     } else if (message.type === "SEND_TO_FDM") {
         (async () => {
-            let finalReferer = message.referer || message.url;
+            let senderUrl = sender.tab ? sender.tab.url : "";
+            let finalReferer = message.referer || senderUrl || message.url;
             let finalUrl = message.url;
             let cookieStr = "";
 
             if (!message.isYoutube) {
-                // Use centralized cookie logic (DRY)
+                // Use extracted cookie logic
                 cookieStr = await getCookiesForUrls([finalReferer, finalUrl]);
             } else {
                 finalReferer = YOUTUBE_FIX.CLEAR_REFERER;
