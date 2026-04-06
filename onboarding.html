@@ -240,14 +240,14 @@
                     <li>Lancement en arrière-plan (sans alerte navigateur)</li>
                 </ul>
 
-                <a href="FDM_Linker.bat" download class="action-button btn-premium" id="download-linker">
+                <button class="action-button btn-premium" id="download-linker">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    Télécharger le Linker (.bat)
-                </a>
+                    <span id="dl-text">Télécharger le Linker (.bat)</span>
+                </button>
                 <p style="text-align: center; margin-top: 12px; font-size: 0.8rem; margin-bottom: 0;">
                     Double-cliquez sur le fichier téléchargé. 100% Sûr et Transparent. Redémarrez le navigateur ensuite.
                 </p>
@@ -271,16 +271,6 @@
         </div>
     </div>
 
-    <script>
-        document.getElementById('download-linker').addEventListener('click', function(e) {
-            // Little visual feedback
-            const btn = this;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = 'Téléchargement...';
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-            }, 3000);
-        });
-    </script>
+    <script src="onboarding.js"></script>
 </body>
 </html>
