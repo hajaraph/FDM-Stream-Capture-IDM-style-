@@ -772,3 +772,10 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     return true;
 });
+
+// --- ONBOARDING: Welcome Page ---
+api.runtime.onInstalled.addListener((details) => {
+    if (details.reason === 'install') {
+        api.tabs.create({ url: api.runtime.getURL('onboarding.html') });
+    }
+});

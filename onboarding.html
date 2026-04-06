@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenue sur FDM Stream Catcher</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.2);
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px 20px;
+            text-align: center;
+            animation: fadeInBody 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeInBody {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            margin-bottom: 50px;
+            font-weight: 500;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 24px;
+            text-align: left;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-premium {
+            border-color: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(16, 185, 129, 0.1) inset;
+        }
+
+        .card-premium::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 4px;
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 100px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 20px;
+        }
+
+        .badge-active { background: rgba(37, 99, 235, 0.15); color: #60a5fa; }
+        .badge-recommended { background: var(--success-glow); color: #34d399; }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin: 0 0 16px 0;
+            font-weight: 700;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 30px 0;
+        }
+
+        .feature-list li {
+            position: relative;
+            padding-left: 28px;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            color: #cbd5e1;
+        }
+
+        .feature-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: var(--success);
+            font-weight: 900;
+            font-size: 1.1rem;
+        }
+
+        .feature-list.cross li::before {
+            content: '✕';
+            color: #ef4444;
+        }
+
+        .action-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
+        }
+
+        .action-button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        .btn-premium {
+            background: var(--success);
+            box-shadow: 0 8px 16px var(--success-glow);
+        }
+
+        .btn-premium:hover {
+            background: #059669;
+            box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3);
+        }
+
+        code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #93c5fd;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Extension Installée.</h1>
+        <p class="subtitle">Choisissez comment Free Download Manager doit communiquer avec l'extension.</p>
+
+        <div class="grid">
+            <!-- Mode Classique -->
+            <div class="card">
+                <span class="status-badge badge-active">Actif par défaut</span>
+                <h2>Mode Classique (Zéro-config)</h2>
+                <p>L'extension est prête à l'emploi. Elle utilise le protocole magique <code>fdm://</code> pour ouvrir FDM sans aucune installation supplémentaire.</p>
+                
+                <ul class="feature-list">
+                    <li>Prise en charge des vidéos directes (MP4)</li>
+                    <li>Aucun fichier supplémentaire à installer</li>
+                </ul>
+                <ul class="feature-list cross">
+                    <li>Bloqué sur les sites protégés (Uqload, etc.)</li>
+                    <li>Ne fusionne pas automatiquement Audio/Vidéo</li>
+                    <li>Ne contourne pas la sécurité des serveurs</li>
+                </ul>
+
+                <div style="padding: 14px; text-align: center; color: var(--text-muted); font-size: 0.9rem; background: rgba(0,0,0,0.2); border-radius: 12px;">
+                    Aucune action requise. Vous pouvez fermer cet onglet.
+                </div>
+            </div>
+
+            <!-- Mode Premium -->
+            <div class="card card-premium">
+                <span class="status-badge badge-recommended">Recommandé pour les Experts</span>
+                <h2>Mode Native Bridge (IDM-Style)</h2>
+                <p>Débloquez la capture avancée via <strong>Native Messaging</strong>. Une communication silencieuse et totale entre l'extension et FDM.</p>
+                
+                <ul class="feature-list">
+                    <li>Téléchargement sur serveurs protégés (Uqload)</li>
+                    <li>Transmission des Cookies & Referer (IDM)</li>
+                    <li>Fusion HLS/DASH transparente</li>
+                    <li>Lancement en arrière-plan (sans alerte navigateur)</li>
+                </ul>
+
+                <a href="FDM_Linker.bat" download class="action-button btn-premium" id="download-linker">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Télécharger le Linker (.bat)
+                </a>
+                <p style="text-align: center; margin-top: 12px; font-size: 0.8rem; margin-bottom: 0;">
+                    Double-cliquez sur le fichier téléchargé. 100% Sûr et Transparent. Redémarrez le navigateur ensuite.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('download-linker').addEventListener('click', function(e) {
+            // Little visual feedback
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Téléchargement...';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+            }, 3000);
+        });
+    </script>
+</body>
+</html>
