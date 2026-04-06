@@ -584,22 +584,50 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 // ignore
             }
 
-            let streams = [...(tabStreams[targetTabId] || [])];
+            // --- SMART SORTING ENGINE (Priority System based on config.js) ---
+            const getPriority = (s) => {
+                const type = s.type || 'others';
+                if (type === 'videos') return 100;    // Top: MP4/WebM/MKV
+                if (type === 'youtube') return 90;   // High: YouTube Video
+                if (type === 'manifests') return 80; // Master Playlists (m3u8/mpd)
+                if (type === 'subtitles') return 60; // Subtitles
+                if (type === 'segments') return 10;  // Technical segments (ts/m4s)
+                return 50; // Others
+            };
+
+            let rawStreams = [...(tabStreams[targetTabId] || [])];
 
             // Auto-inject YouTube stream if on YouTube
             const tabUrl = message.tabUrl || (sender && sender.tab ? sender.tab.url : "");
             const tabTitle = message.tabTitle || (sender && sender.tab ? sender.tab.title : "YouTube Video");
 
             if (tabUrl && (tabUrl.includes("youtube.com/watch") || tabUrl.includes("youtu.be/"))) {
-                if (!streams.some(s => s.type === 'youtube')) {
-                    streams.unshift({
+                if (!rawStreams.some(s => s.type === 'youtube')) {
+                    rawStreams.unshift({
                         url: tabUrl,
                         title: tabTitle,
                         type: 'youtube',
-                        pageUrl: tabUrl
+                        pageUrl: tabUrl,
+                        timestamp: Date.now()
                     });
                 }
             }
+
+            // --- PROACTIVE UNIQUE FILTER (Anti-Duplicates) ---
+            // On utilise une Map pour ne garder que l'URL la plus récente (dernière capturée)
+            const uniqueMap = new Map();
+            rawStreams.forEach(s => {
+                const key = s.url;
+                if (!uniqueMap.has(key) || s.timestamp > uniqueMap.get(key).timestamp) {
+                    uniqueMap.set(key, s);
+                }
+            });
+
+            const streams = Array.from(uniqueMap.values());
+
+            // Apply priority sorting
+            streams.sort((a, b) => getPriority(b) - getPriority(a));
+
             sendResponse(streams);
         })();
 
