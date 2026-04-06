@@ -1,56 +1,38 @@
-# FDM Stream Capture (Style IDM)
+# Stream Catcher for FDM
 
-[![Firefox Add-on](https://img.shields.io/badge/Firefox-Add--on-orange.svg)](https://addons.mozilla.org/en-US/firefox/addon/fdm-stream-capture-style-idm/)
+**Stream Catcher for FDM** is the ultimate companion for Free Download Manager (FDM). Unlike standard download extensions, this powerful tool is specifically designed to detect and intercept complex video streams (M3U8, DASH, HLS) and direct HTML5 videos that traditional downloaders often miss.
 
-Bienvenue dans le dépôt de **FDM Stream Capture**, l'extension "ultime" conçue pour pallier les faiblesses de l'extension officielle de Free Download Manager (FDM) sur Firefox.
+## Key Features
+*   **Advanced Stream Detection**: Automatically detects hidden video formats like `.m3u8`, `.ts`, `.mp4`, and adaptative streams across the web.
+*   **YouTube Support**: Seamlessly captures and sends YouTube video links directly to FDM in maximum quality.
+*   **Cookie Delivery**: Bypasses anti-download protections by sending your active browser cookies and referers directly to FDM. If you can watch it, you can download it!
+*   **Smart & Clean UI**: A beautiful, non-intrusive hover button appears only when a real downloadable video is playing.
+*   **Memory Persistence**: Never lose your captured links, even if you navigate away or leave the tab open for hours.
+*   **Zero-Config Fallback**: Instantly sends standard videos to FDM using `fdm://` without any setup needed.
 
-Cette extension agit comme un "renifleur" (sniffer) de flux vidéos ultra-puissant capable de déjouer les protections modernes (HLS, DASH, lecteurs iframe cachés, Voe, Uqload, YouTube) et de relier ces téléchargements directement au logiciel bureau FDM.
+## Required Engine (Elephant Add-on)
+To fully parse complex video links like YouTube, FDM needs a media parser. We highly recommend installing the **Elephant** add-on directly inside your FDM desktop application:
+1. Go to FDM Menu > **Add-ons**.
+2. Click **Add add-on** (the `+` sign) and paste this URL: `https://free-addons.org/FDM/elephant.fda`
+3. Hit Install. FDM is now fully equipped!
 
----
+## IMPORTANT: One-Time Setup For Premium Features
+To unlock Premium features like Native Native Messaging authorization, secure Server downloads (Uqload), and Cookie Delivery, you must perform a one-time "handshake" script.
 
-## Installation & Activation Rapide
+### Option A: Automated Bridge Setup (Easiest)
+1. Download the automated linker tool from our GitHub (or directly inside the extension Onboarding Screen):
+   **[Download FDM_Linker.bat](https://github.com/hajaraph/FDM-Stream-Capture-IDM-style-/blob/master/FDM_Linker.bat)**
+2. Double-click the file to execute it (No Administrator rights required!).
+3. Completely **restart your Browser (Firefox/Chrome)**.
 
-### 1. Télécharger l'extension
-Installez l'extension directement depuis le store officiel :
-👉 **[Télécharger sur Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fdm-stream-capture-style-idm/)**
+### Option B: Manual Setup
+If you prefer to do it yourself:
+1. Navigate to: `C:\Users\[YourUser]\AppData\Local\Softdeluxe\Free Download Manager\Mozilla\`
+2. Open `org.freedownloadmanager.fdm5.cnh.json` with Notepad.
+3. Add `"stream_catcher_fdm@freedownloadmanager.org"` to the `"allowed_extensions"` list.
+4. **Save** and **restart Firefox**.
 
-### 2. Procédure de liaison (Native Messaging) :
-
-Pour que Firefox puisse communiquer avec **Free Download Manager**, une liaison doit être établie. 
-
-1.  **Téléchargez ce dépôt** (bouton vert "Code" -> Download ZIP) ou juste le fichier `FDM_Linker.bat`.
-2.  **Exécutez `FDM_Linker.bat`** en faisant un **clic droit -> Exécuter en tant qu'administrateur**.
-    *   Le script va automatiquement détecter votre installation de FDM et ajouter l'autorisation pour l'extension.
-3.  **Redémarrez complètement Firefox.**
-
----
-
-## Fonctionnalités Principales
-
-### 1. Détection de Flux Avancée (M3U8, MP4, DASH)
-*   Écoute silencieuse du trafic réseau (`webRequest.onResponseStarted`).
-*   Analyse combinée des **Extensions d'URL** (`.m3u8`, `.ts`, `.mp4`) et des **Content-Types** HTTP.
-*   Extraction propre du nom du fichier basée sur le titre de la page.
-
-### 2. Support Optimisé pour YouTube
-*   Contournement du **Bug 413 (Payload Too Large)** de FDM.
-*   Nettoyage drastique de l'URL YouTube envoyée à FDM.
-
-### 3. Nettoyage Proactif (Garbage Collection)
-*   Vérification des Iframes vivants : les flux sont supprimés de la mémoire dès qu'un lecteur est fermé ou remplacé.
-
-### 4. Persistance Mémoire (Manifest V3)
-*   Système d'**Hydratation** via `browser.storage.local` pour éviter l'amnésie du Service Worker de Firefox.
+That's it! Your browser is now permanently linked to FDM. Just hover over any video on the web and enjoy the magic!
 
 ---
-
-## Pour les Développeurs (Packaging)
-
-Si vous souhaitez modifier et republier l'extension :
-
-1.  ID de l'extension : `stream_catcher_fdm@freedownloadmanager.org`
-2.  Compressez uniquement les fichiers sources (`_locales`, `icons`, `.js`, `.html`, `.json`).
-3.  **N'incluez pas** le fichier `.bat` dans l'archive envoyée à Mozilla.
-
----
-*Ce projet est une création indépendante visant à améliorer l'intégration de FDM sur les lectures de médias complexes en ligne.*
+*Disclaimer: This extension is an independent project and is not officially affiliated with Free Download Manager. Please respect copyright laws and only download content you have the right to.*

@@ -186,9 +186,20 @@ function attachEvents() {
         btn.onclick = (e) => {
             const target = e.target.closest('.tl-btn-cp');
             navigator.clipboard.writeText(target.getAttribute('data-url')).then(() => {
-                const originalSvg = target.firstElementChild.outerHTML;
-                target.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-                setTimeout(() => target.innerHTML = originalSvg, 1500);
+                const originalSvg = target.firstElementChild;
+                if (!originalSvg) return;
+                originalSvg.style.display = 'none';
+                
+                const check = document.createElement('span');
+                check.textContent = '✓';
+                check.style.fontWeight = 'bold';
+                check.style.fontSize = '14px';
+                target.appendChild(check);
+                
+                setTimeout(() => {
+                    check.remove();
+                    originalSvg.style.display = '';
+                }, 1500);
             });
         };
     });
