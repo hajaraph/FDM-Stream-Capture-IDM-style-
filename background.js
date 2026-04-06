@@ -215,10 +215,18 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
     try {
         const safePort = createSafePort(FDM_HOST);
         if (!safePort) {
-            // Fallback to browser download if connection failed
-            api.downloads.download({ url: url });
+            // --- MAGIC FALLBACK (Zero-Install Strategy) ---
+            // If Native Messaging is missing, we use the FDM custom URI scheme.
+            // This bypasses the need for the .bat installer but loses cookies/referer.
+            const fdmTargetUrl = "fdm://" + url;
+            
+            api.tabs.create({ url: fdmTargetUrl, active: false }, (tab) => {
+                // FDM protocol handler tab usually stays blank, close it immediately after launching
+                setTimeout(() => { if (tab && tab.id) api.tabs.remove(tab.id); }, 3000);
+            });
+            
             updateDownloadStatus(downloadEntry.id, DOWNLOAD_STATUS.FALLBACK);
-            notifyUser('FDM: FDM non disponible, telechargement via navigateur.', 'warning');
+            notifyUser('FDM lancé via protocole fdm:// (Sans linker NativeMessaging)', 'warning');
             return;
         }
 
