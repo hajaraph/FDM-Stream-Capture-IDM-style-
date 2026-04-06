@@ -185,6 +185,23 @@ function createSafePort(host) {
     };
 }
 
+/**
+ * Calcule le score de priorité dynamique d'un flux pour le tri IDM-Style.
+ * Basé sur les types définis dans config.js.
+ * @param {object} s - Objet stream
+ * @returns {number} Score de priorité (100 = plus haut)
+ */
+function getStreamPriority(s) {
+    if (!s) return 0;
+    const type = s.type || 'others';
+    if (type === 'videos') return 100;    // Top: MP4/WebM/MKV
+    if (type === 'youtube') return 90;   // High: YouTube Video
+    if (type === 'manifests') return 80; // Master Playlists (m3u8/mpd)
+    if (type === 'subtitles') return 60; // Subtitles
+    if (type === 'segments') return 10;  // Technical segments (ts/m4s)
+    return 50; // Others
+}
+
 // Export for use in other modules (when used as module)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -194,7 +211,8 @@ if (typeof module !== 'undefined' && module.exports) {
         cleanYouTubeUrl,
         notifyUser,
         createSafePort,
-        fdmConnectionState
+        fdmConnectionState,
+        getStreamPriority
     };
 }
 

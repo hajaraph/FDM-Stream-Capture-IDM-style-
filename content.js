@@ -46,24 +46,58 @@ function showFDMNotification(message, type = 'info') {
 let fdmShadowRoot = null;
 let fdmContainer = null;
 
+function detectSiteColor() {
+    // 1. Check for Major Streaming Platforms (Presets)
+    if (window.location.hostname.includes('youtube.com')) return '#ff0000';
+    if (window.location.hostname.includes('dailymotion.com')) return '#0062ff';
+    if (window.location.hostname.includes('twitch.tv')) return '#9146ff';
+    if (window.location.hostname.includes('vimeo.com')) return '#1ab7ea';
+    if (window.location.hostname.includes('uqload.')) return '#f59e0b'; // Amber thematic for Uqload
+
+    // 2. Try to get theme-color meta tag
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme && metaTheme.content) return metaTheme.content;
+
+    // 3. Fallback to Favicon Color ? (Simple fallback here)
+    return '#2563eb';
+}
+
 function ensureShadowRoot() {
     if (fdmShadowRoot) return;
     fdmContainer = document.createElement('div');
     fdmContainer.id = 'fdm-overlay-container';
     fdmContainer.style.cssText = 'position:absolute;top:0;left:0;width:0;height:0;z-index:2147483647;pointer-events:none;';
     document.documentElement.appendChild(fdmContainer);
+    
+    // Create Shadow Root (mode: open for easier debugging if needed)
     fdmShadowRoot = fdmContainer.attachShadow({ mode: 'open' });
+    
+    // Apply Dynamic Site Identity
+    const brandColor = detectSiteColor();
+    fdmContainer.style.setProperty('--fdm-brand', brandColor);
+    
+    // Create a 15% opacity version (handling hex ONLY for simplicity)
+    const mutedColor = brandColor.startsWith('#') && brandColor.length === 7 
+        ? `${brandColor}26` 
+        : 'rgba(37, 99, 235, 0.15)';
+    fdmContainer.style.setProperty('--fdm-brand-muted', mutedColor);
+
     injectPremiumStyles();
 }
 
 function injectPremiumStyles() {
     const style = document.createElement('style');
     style.textContent = `
+        :host {
+            --fdm-brand: #2563eb;
+            --fdm-brand-muted: rgba(37, 99, 235, 0.1);
+        }
+
         #fdm-download-button {
             position: fixed;
             z-index: 2147483646;
             height: 44px;
-            width: 44px; /* Cercle parfait par défaut */
+            width: 44px;
             border-radius: 22px;
             background: rgba(15, 23, 42, 0.75);
             backdrop-filter: blur(12px);
@@ -93,7 +127,7 @@ function injectPremiumStyles() {
         }
 
         #fdm-download-button:hover {
-            width: 154px; /* Se dilate en pilule */
+            width: 154px;
             background: rgba(15, 23, 42, 0.95);
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
             transform: scale(1.05);
@@ -112,11 +146,12 @@ function injectPremiumStyles() {
             stroke: currentColor;
             stroke-width: 2.5;
             flex-shrink: 0;
-            margin-left: 2px; /* Petit ajustement pour centrer visuellement l'icône dans le cercle */
+            margin-left: 2px;
         }
         
         #fdm-download-button:hover svg {
             margin-left: 0;
+            color: var(--fdm-brand);
         }
 
         #fdm-dropdown-menu {
@@ -144,7 +179,7 @@ function injectPremiumStyles() {
 
         .fdm-dropdown-item {
             padding: 12px 14px;
-            cursor: pointer; /* Curseur URL (main) */
+            cursor: pointer;
             font-size: 13px;
             font-weight: 500;
             white-space: nowrap;
@@ -156,10 +191,10 @@ function injectPremiumStyles() {
             gap: 12px;
             border-radius: 12px;
             position: relative;
-            user-select: none; /* Empêche la sélection de texte type "curseur I" */
+            user-select: none;
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             animation: fdmSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-            border-left: 0 solid #2563eb;
+            border-left: 0 solid var(--fdm-brand);
         }
 
         @keyframes fdmSlideIn {
@@ -168,16 +203,16 @@ function injectPremiumStyles() {
         }
 
         .fdm-dropdown-item:hover {
-            background-color: #f1f5f9;
-            color: #2563eb;
-            transform: translateX(8px); /* Effet de glissement prononcé */
-            border-left: 4px solid #2563eb;
+            background-color: var(--fdm-brand-muted);
+            color: var(--fdm-brand);
+            transform: translateX(8px);
+            border-left: 4px solid var(--fdm-brand);
             padding-left: 10px;
         }
 
         .fdm-dropdown-item:active {
             transform: translateX(4px) scale(0.96);
-            background-color: #e2e8f0;
+            background-color: var(--fdm-brand-muted);
         }
 
         .fdm-type-badge {

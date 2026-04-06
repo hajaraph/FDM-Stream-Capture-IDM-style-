@@ -234,7 +234,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnShowCart) {
         btnShowCart.addEventListener('click', async () => {
             const log = await api.runtime.sendMessage({ type: "GET_CATCH_LOG" }) || [];
-            batchItems = log.map(s => ({ url: s.url, title: s.title || "Vidéo", type: s.type || 'MEDIA', referer: s.pageUrl || "" }));
+            
+            // --- PROACTIVE UNIQUE FILTER (Popup Cart) ---
+            const uniqueMap = new Map();
+            log.forEach(s => {
+                if (!uniqueMap.has(s.url) || s.timestamp > uniqueMap.get(s.url).timestamp) {
+                    uniqueMap.set(s.url, s);
+                }
+            });
+
+            const sortedLog = Array.from(uniqueMap.values()).sort((a, b) => getStreamPriority(b) - getStreamPriority(a));
+
+            batchItems = sortedLog.map(s => ({ 
+                url: s.url, 
+                title: s.title || "Vidéo", 
+                type: s.type || 'MEDIA', 
+                referer: s.pageUrl || "" 
+            }));
+            
             renderBatchList(batchItems, true);
         });
     }
@@ -333,7 +350,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const info = document.createElement('div');
             info.style.flex = '1'; info.style.overflow = 'hidden';
-            const t = document.createElement('div'); t.className = 'tl-title'; t.textContent = item.title; info.appendChild(t);
+            
+            const titleRow = document.createElement('div');
+            titleRow.style.display = 'flex'; titleRow.style.alignItems = 'center'; titleRow.style.gap = '8px'; titleRow.style.marginBottom = '2px';
+            
+            const badge = document.createElement('span');
+            const typeLabels = { youtube: 'YT', manifests: 'HLS', videos: 'MP4', segments: 'SEG', others: 'FILE' };
+            badge.className = `tl-type-badge ${item.type || 'others'}`;
+            badge.style.fontSize = '9px'; badge.style.padding = '1px 5px';
+            badge.textContent = typeLabels[item.type] || 'FILE';
+            titleRow.appendChild(badge);
+
+            const t = document.createElement('div'); 
+            t.className = 'tl-title'; 
+            t.style.marginBottom = '0';
+            t.textContent = item.title; 
+            titleRow.appendChild(t);
+            
+            info.appendChild(titleRow);
+            
             const u = document.createElement('div'); u.className = 'tl-url'; u.textContent = item.url; info.appendChild(u);
             row.appendChild(info);
 

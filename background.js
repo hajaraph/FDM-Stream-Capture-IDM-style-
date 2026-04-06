@@ -584,17 +584,6 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 // ignore
             }
 
-            // --- SMART SORTING ENGINE (Priority System based on config.js) ---
-            const getPriority = (s) => {
-                const type = s.type || 'others';
-                if (type === 'videos') return 100;    // Top: MP4/WebM/MKV
-                if (type === 'youtube') return 90;   // High: YouTube Video
-                if (type === 'manifests') return 80; // Master Playlists (m3u8/mpd)
-                if (type === 'subtitles') return 60; // Subtitles
-                if (type === 'segments') return 10;  // Technical segments (ts/m4s)
-                return 50; // Others
-            };
-
             let rawStreams = [...(tabStreams[targetTabId] || [])];
 
             // Auto-inject YouTube stream if on YouTube
@@ -614,7 +603,6 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
 
             // --- PROACTIVE UNIQUE FILTER (Anti-Duplicates) ---
-            // On utilise une Map pour ne garder que l'URL la plus récente (dernière capturée)
             const uniqueMap = new Map();
             rawStreams.forEach(s => {
                 const key = s.url;
@@ -625,8 +613,8 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
             const streams = Array.from(uniqueMap.values());
 
-            // Apply priority sorting
-            streams.sort((a, b) => getPriority(b) - getPriority(a));
+            // Apply priority sorting (Using global getStreamPriority)
+            streams.sort((a, b) => getStreamPriority(b) - getStreamPriority(a));
 
             sendResponse(streams);
         })();
