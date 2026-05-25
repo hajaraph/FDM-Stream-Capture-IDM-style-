@@ -83,24 +83,22 @@ The extension is organized into focused modules for maintainability:
 - Extension settings UI
 - Profile configuration persistence
 
-## Loading Order
+## Loading Order (Modern ESM)
 
-The manifest.json defines strict loading order:
+As of the 2026 update, the extension uses native ES Modules. The `manifest.json` defines the entry points:
 
-**Background scripts (Firefox):**
-1. browser-compat.js (no dependencies, exposes `api` globally)
-2. constants.js (no dependencies)
-3. config.js (depends on constants.js)
-4. utils.js (depends on constants.js, browser-compat.js)
-5. background.js (depends on all above)
+**Background Service Worker:**
+1. background.js (Module entry point)
+   - Imports: browser-compat.js, constants.js, config.js, utils.js
 
 **Content scripts:**
-1. browser-compat.js
-2. constants.js
-3. config.js
-4. content.js (depends on all above)
+1. content-loader.js (Standard script)
+   - Dynamically imports content.js (Module)
+   - content.js Imports: browser-compat.js, constants.js
 
-**Chrome/Edge:** Same order, but uses `manifest-chrome.json` with service worker instead of background scripts.
+**UI (Popup/Sidebar/Options):**
+- Loaded via `<script type="module" src="...">` in respective HTML files.
+- All dependencies are managed via ESM `import` statements.
 
 ## Adding New Features
 

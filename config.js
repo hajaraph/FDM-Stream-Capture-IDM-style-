@@ -1,5 +1,8 @@
-// Centralized Detection Rules - Shared between background.js and content.js
-const DETECTION_RULES = {
+/**
+ * Centralized Detection Rules - Shared between background.js and content.js
+ */
+
+export const DETECTION_RULES = {
     extensions: {
         manifests: ['.m3u8', '.mpd', '.f4m', '.m3u'],
         videos: ['.mp4', '.webm', '.mkv', '.avi', '.mov', '.flv'],
@@ -19,7 +22,7 @@ const DETECTION_RULES = {
 };
 
 // Regex patterns for different detection scenarios
-const DETECTION_PATTERNS = {
+export const DETECTION_PATTERNS = {
     // Hidden streams in JS/source code (aggressive URL extraction)
     hiddenStreamRegex: /(https?:\/\/[^\s"'<>\\]+?\.(?:m3u8|mp4|webm|mkv|ts)(?:\?[^\s"'<>\\]*)?)/ig,
 
@@ -33,8 +36,10 @@ const DETECTION_PATTERNS = {
     urlExtensionRegex: /\.(mp4|m3u8|ts|webm|flv|mkv|mp3|flac|wav|jpg|png|gif|pdf|zip|rar)(?:\?|$)/i
 };
 
-// Helper: Detect media type from URL
-function detectMediaType(url) {
+/**
+ * Helper: Detect media type from URL
+ */
+export function detectMediaType(url) {
     if (!url) return null;
 
     const lowerUrl = url.toLowerCase().split('?')[0];
@@ -48,8 +53,10 @@ function detectMediaType(url) {
     return null;
 }
 
-// Helper: Detect media type from Content-Type header
-function detectTypeFromContentType(contentType) {
+/**
+ * Helper: Detect media type from Content-Type header
+ */
+export function detectTypeFromContentType(contentType) {
     if (!contentType) return null;
 
     const ct = contentType.toLowerCase();
@@ -63,8 +70,10 @@ function detectTypeFromContentType(contentType) {
     return null;
 }
 
-// Helper: Extract file extension from URL
-function extractExtension(url) {
+/**
+ * Helper: Extract file extension from URL
+ */
+export function extractExtension(url) {
     const match = url.match(DETECTION_PATTERNS.urlExtensionRegex);
     return match ? match[1].toLowerCase() : null;
 }

@@ -1,23 +1,40 @@
 /**
- * FDM Helper - Background Script
+ * FDM Helper - Background Script (ESM)
  * Handles stream detection, download management, and native messaging.
- *
- * Module dependencies (loaded before this script):
- * - browser-compat.js: Cross-browser API wrapper (exposes `api`)
- * - constants.js: Magic numbers, timing, limits
- * - config.js: Detection rules and patterns
- * - utils.js: Security, notification, and cookie utilities
  */
 
-// --- SAFETY: Ensure `api` is available in Background Script Scope ---
-if (typeof api === 'undefined') {
-    var api = typeof browser !== 'undefined' ? browser : chrome;
-    if (typeof globalThis !== 'undefined') globalThis.api = api;
-}
+import api, { BROWSER_ENV } from './browser-compat.js';
+import { TIMING, LIMITS, UI, MAX_CATCH_LOG, MAX_DOWNLOAD_HISTORY, YOUTUBE_FIX } from './constants.js';
+import { DETECTION_RULES, DETECTION_PATTERNS } from './config.js';
+import { 
+    isValidDownloadUrl, 
+    filterSensitiveCookies, 
+    getCookiesForUrls, 
+    cleanYouTubeUrl, 
+    notifyUser, 
+    createSafePort, 
+    getStreamPriority 
+} from './utils.js';
 
 // FDM Native Messaging Bridge
 const FDM_HOST = 'org.freedownloadmanager.fdm5.cnh';
 let nextTaskId = 1;
+
+// --- STATE MANAGEMENT (Dual-Storage Strategy) ---
+const AppState = {
+    async get(keys, area = 'local') {
+        const storage = api.storage[area] || api.storage.local;
+        return new Promise((resolve) => {
+            storage.get(keys || null, (data) => resolve(data || {}));
+        });
+    },
+    async set(items, area = 'local') {
+        const storage = api.storage[area] || api.storage.local;
+        return new Promise((resolve) => {
+            storage.set(items, () => resolve());
+        });
+    }
+};
 
 // Stream tracking state
 let tabStreams = {};
@@ -26,8 +43,8 @@ let isHydrated = false;
 let hydratePromise = null;
 
 // --- DOWNLOAD TRACKING ---
-let downloadQueue = []; // Track sent downloads
-let downloadHistory = []; // Persistent history
+let downloadQueue = []; 
+let downloadHistory = []; 
 
 const DOWNLOAD_STATUS = {
     PENDING: 'pending',
@@ -37,7 +54,10 @@ const DOWNLOAD_STATUS = {
     FAILED: 'failed'
 };
 
-function trackDownload(url, filename, status = DOWNLOAD_STATUS.SENT) {
+async function trackDownload(url, filename, status = DOWNLOAD_STATUS.SENT) {
+    const data = await AppState.get(['downloadHistory'], 'local');
+    const history = data.downloadHistory || [];
+    
     const entry = {
         id: Date.now(),
         url: url,
@@ -48,29 +68,24 @@ function trackDownload(url, filename, status = DOWNLOAD_STATUS.SENT) {
     };
 
     downloadQueue.push(entry);
-    downloadHistory.unshift(entry);
+    history.unshift(entry);
 
-    // Keep history manageable
-    if (downloadHistory.length > MAX_DOWNLOAD_HISTORY) {
-        downloadHistory = downloadHistory.slice(0, MAX_DOWNLOAD_HISTORY);
-    }
-
-    // Persist history
-    api.storage.local.set({ downloadHistory: downloadHistory }).catch(() => {});
+    const trimmedHistory = history.slice(0, MAX_DOWNLOAD_HISTORY);
+    await AppState.set({ downloadHistory: trimmedHistory }, 'local');
+    downloadHistory = trimmedHistory;
 
     return entry;
 }
 
-function updateDownloadStatus(id, newStatus) {
-    const queueEntry = downloadQueue.find(e => e.id === id);
-    if (queueEntry) {
-        queueEntry.status = newStatus;
-    }
-
-    const historyEntry = downloadHistory.find(e => e.id === id);
-    if (historyEntry) {
-        historyEntry.status = newStatus;
-        api.storage.local.set({ downloadHistory: downloadHistory }).catch(() => {});
+async function updateDownloadStatus(id, newStatus) {
+    const data = await AppState.get(['downloadHistory'], 'local');
+    const history = data.downloadHistory || [];
+    
+    const entry = history.find(e => e.id === id);
+    if (entry) {
+        entry.status = newStatus;
+        await AppState.set({ downloadHistory: history }, 'local');
+        downloadHistory = history;
     }
 }
 
@@ -86,10 +101,14 @@ let extensionSettings = {
 async function hydrate() {
     if (isHydrated) return;
     if (!hydratePromise) {
-        hydratePromise = api.storage.local.get(['tabStreams', 'extensionSettings', 'catchLog']).then(data => {
-            if (data.tabStreams) tabStreams = data.tabStreams;
-            if (data.catchLog) catchLog = data.catchLog;
-            if (data.extensionSettings) extensionSettings = { ...extensionSettings, ...data.extensionSettings };
+        const localPromise = AppState.get(['extensionSettings', 'catchLog', 'downloadHistory'], 'local');
+        const sessionPromise = AppState.get(['tabStreams'], 'session');
+
+        hydratePromise = Promise.all([localPromise, sessionPromise]).then(([localData, sessionData]) => {
+            if (sessionData.tabStreams) tabStreams = sessionData.tabStreams;
+            if (localData.catchLog) catchLog = localData.catchLog;
+            if (localData.extensionSettings) extensionSettings = { ...extensionSettings, ...localData.extensionSettings };
+            if (localData.downloadHistory) downloadHistory = localData.downloadHistory;
             isHydrated = true;
         });
     }
@@ -102,30 +121,41 @@ api.storage.onChanged.addListener((changes, area) => {
     }
 });
 
-// --- OPTIMIZED PERSIST WITH DEBOUNCE ---
-let persistTimeout = null;
+function broadcastUpdate(tabId = -1) {
+    api.runtime.sendMessage({ type: 'STREAMS_UPDATED', tabId: tabId }).catch(() => {});
+}
 
-function persist() {
-    // Clear any pending write
-    if (persistTimeout) clearTimeout(persistTimeout);
+let persistTimeoutLocal = null;
+let persistTimeoutSession = null;
 
-    // Schedule new write after debounce delay
-    persistTimeout = setTimeout(() => {
-        api.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => {});
-        persistTimeout = null;
+function persist(tabId = -1) {
+    if (persistTimeoutSession) clearTimeout(persistTimeoutSession);
+    persistTimeoutSession = setTimeout(async () => {
+        await AppState.set({ tabStreams }, 'session');
+        persistTimeoutSession = null;
+        broadcastUpdate(tabId);
     }, TIMING.PERSIST_DEBOUNCE_MS);
+
+    if (persistTimeoutLocal) clearTimeout(persistTimeoutLocal);
+    persistTimeoutLocal = setTimeout(async () => {
+        await AppState.set({ catchLog }, 'local');
+        persistTimeoutLocal = null;
+    }, TIMING.PERSIST_DEBOUNCE_MS * 2);
 }
 
-// Force immediate persist (use sparingly)
-function persistNow() {
-    if (persistTimeout) {
-        clearTimeout(persistTimeout);
-        persistTimeout = null;
-    }
-    api.storage.local.set({ tabStreams: tabStreams, catchLog: catchLog }).catch(() => {});
+// Force immediate persist
+async function persistNow() {
+    if (persistTimeoutLocal) clearTimeout(persistTimeoutLocal);
+    if (persistTimeoutSession) clearTimeout(persistTimeoutSession);
+    persistTimeoutLocal = null;
+    persistTimeoutSession = null;
+    
+    await Promise.all([
+        AppState.set({ tabStreams }, 'session'),
+        AppState.set({ catchLog }, 'local')
+    ]);
 }
 
-// --- INTELLIGENT NAMING ENGINE (Premium) ---
 function getSmartFileName(rawTitle, url, isYoutube = false) {
     if (!rawTitle || rawTitle === "Vidéo détectée" || rawTitle === "Vidéo cachée") {
         try {
@@ -139,17 +169,14 @@ function getSmartFileName(rawTitle, url, isYoutube = false) {
 
     let name = rawTitle || "Media_Stream";
 
-    // 1. Nettoyage des titres de sites et séparateurs
     const siteSeparators = [" - ", " | ", " — ", " : ", " » ", " « ", " // "];
     for (const sep of siteSeparators) {
         if (name.includes(sep)) {
             const parts = name.split(sep);
-            // On prend la partie la plus descriptive (souvent la première ou la plus longue)
             name = parts.reduce((a, b) => a.length > b.length ? a : b);
         }
     }
 
-    // 2. Suppresseur de "bruit" SEO et technique (Premium)
     const junkPatterns = [
         /watch\s+/gi, /\s+online/gi, /\s+streaming/gi, /\s+free/gi, 
         /full\s+episode/gi, /official\s+video/gi, /official\s+trailer/gi,
@@ -161,15 +188,13 @@ function getSmartFileName(rawTitle, url, isYoutube = false) {
         name = name.replace(regex, "");
     });
 
-    // 3. Formatage final (caractères autorisés)
     name = name.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, " ").trim();
     
     if (!name || name.length < 3) {
         name = "FDM_Download_" + Math.random().toString(36).substring(2, 7);
     }
 
-    // 4. Déduction de l'extension
-    let ext = "mp4"; // Default
+    let ext = "mp4"; 
     const extensions = ["mp4", "mkv", "avi", "webm", "m3u8", "ts", "mp3", "flac", "wav", "pdf", "zip"];
     const lowerUrl = url.toLowerCase();
     
@@ -198,46 +223,34 @@ function addToCatchLog(entry) {
 }
 
 async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutube = false) {
-    // --- SECURITY: Validate URL before sending ---
     if (!isValidDownloadUrl(url)) {
         console.error('FDM: Blocked invalid URL:', url);
         notifyUser('FDM: URL invalide ou non securise bloque.', 'error');
         return;
     }
 
-    // --- SECURITY: Filter sensitive cookies ---
     const safeCookies = filterSensitiveCookies(cookies);
-
-    // --- TRACK DOWNLOAD ---
     const cleanName = extensionSettings.smartNaming ? getSmartFileName(filename, url, isYoutube) : filename;
-    const downloadEntry = trackDownload(url, cleanName, DOWNLOAD_STATUS.PENDING);
+    const downloadEntry = await trackDownload(url, cleanName, DOWNLOAD_STATUS.PENDING);
 
     try {
         const safePort = createSafePort(FDM_HOST);
         if (!safePort) {
-            // --- MAGIC FALLBACK (Zero-Install Strategy) ---
-            // If Native Messaging is missing, we use the FDM custom URI scheme.
-            // This bypasses the need for the .bat installer but loses cookies/referer.
             const fdmTargetUrl = "fdm://" + url;
-            
             api.tabs.create({ url: fdmTargetUrl, active: false }, (tab) => {
-                // FDM protocol handler tab usually stays blank, close it immediately after launching
                 setTimeout(() => { if (tab && tab.id) api.tabs.remove(tab.id); }, 3000);
             });
-            
             updateDownloadStatus(downloadEntry.id, DOWNLOAD_STATUS.FALLBACK);
             notifyUser('FDM lancé via protocole fdm:// (Sans linker NativeMessaging)', 'warning');
             return;
         }
 
-        // Send handshake
         safePort.postMessage({
             id: (nextTaskId++).toString(),
             type: "handshake",
-            handshake: { api_version: "1", browser: "Firefox" }
+            handshake: { api_version: "1", browser: "Browser" }
         });
 
-        // --- SMART NAMING (Standardized for FDM) ---
         let downloadObj = {
             url: url,
             filename: cleanName,
@@ -246,14 +259,12 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
             userAgent: navigator.userAgent
         };
 
-        // Paramètres spécifiques pour les flux complexes
         if (isYoutube || url.includes(".m3u8") || url.includes(".mpd")) {
             downloadObj.youtubeChannelVideosDownload = 0;
             downloadObj.videoUrl = url;
             downloadObj.audioUrl = ""; 
         }
 
-        // On utilise TOUJOURS le téléchargement direct (IDM style)
         safePort.postMessage({
             id: (nextTaskId++).toString(),
             type: "create_downloads",
@@ -263,8 +274,6 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
         });
 
         setTimeout(() => safePort.disconnect(), TIMING.NATIVE_PORT_DISCONNECT_MS);
-
-        // --- UPDATE STATUS & NOTIFICATION ---
         updateDownloadStatus(downloadEntry.id, DOWNLOAD_STATUS.SENT);
 
     } catch (e) {
@@ -276,47 +285,36 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
 }
 
 async function sendBatchToFDM(batchItems) {
-    // --- SECURITY: Validate all URLs before sending ---
-    const validItems = batchItems.filter(item => {
-        if (!isValidDownloadUrl(item.url)) {
-            console.warn('FDM Batch: Blocked invalid URL:', item.url);
-            return false;
-        }
-        return true;
-    });
+    const validItems = batchItems.filter(item => isValidDownloadUrl(item.url));
 
     if (validItems.length === 0) {
         notifyUser('FDM: Aucun URL valide a telecharger.', 'error');
         return;
     }
 
-    // --- TRACK BATCH DOWNLOAD ---
-    const batchIds = validItems.map(item => {
+    const batchIds = await Promise.all(validItems.map(item => {
         const cleanName = extensionSettings.smartNaming ? getSmartFileName(item.filename || item.title || "Stream_Catcher_Item", item.url, false) : (item.filename || item.title);
-        return trackDownload(item.url, cleanName, DOWNLOAD_STATUS.PENDING).id;
-    });
+        return trackDownload(item.url, cleanName, DOWNLOAD_STATUS.PENDING).then(e => e.id);
+    }));
 
     try {
         const safePort = createSafePort(FDM_HOST);
         if (!safePort) {
-            // Fallback for each item
             validItems.forEach(item => api.downloads.download({ url: item.url }));
             batchIds.forEach(id => updateDownloadStatus(id, DOWNLOAD_STATUS.FALLBACK));
             notifyUser('FDM: FDM non disponible, telechargement via navigateur.', 'warning');
             return;
         }
 
-        // Send handshake
         safePort.postMessage({
             id: (nextTaskId++).toString(),
             type: "handshake",
-            handshake: { api_version: "1", browser: "Firefox" }
+            handshake: { api_version: "1", browser: "Browser" }
         });
 
         let downloadObjs = validItems.map(item => {
             let nameFromItem = item.filename || item.title || "Stream_Catcher_Item";
             let cleanName = extensionSettings.smartNaming ? getSmartFileName(nameFromItem, item.url, false) : nameFromItem;
-            // --- SECURITY: Filter sensitive cookies for each item ---
             const safeItemCookies = filterSensitiveCookies(item.cookies || '');
 
             return {
@@ -327,7 +325,7 @@ async function sendBatchToFDM(batchItems) {
                 name: cleanName,
                 comment: cleanName,
                 httpReferer: item.referer || item.url,
-                httpCookies: safeItemCookies, // Use filtered cookies
+                httpCookies: safeItemCookies,
                 userAgent: navigator.userAgent,
                 originalUrl: item.url
             };
@@ -344,14 +342,11 @@ async function sendBatchToFDM(batchItems) {
         }
 
         setTimeout(() => safePort.disconnect(), TIMING.NATIVE_PORT_DISCONNECT_MS);
-
-        // --- UPDATE STATUS & SUCCESS NOTIFICATION ---
         batchIds.forEach(id => updateDownloadStatus(id, DOWNLOAD_STATUS.SENT));
         notifyUser(`FDM: ${downloadObjs.length} fichier(s) envoye(s) avec succes.`, 'success');
 
     } catch (e) {
         console.error('FDM sendBatchToFDM error:', e);
-        // Fallback for each
         validItems.forEach(item => api.downloads.download({ url: item.url }));
         batchIds.forEach(id => updateDownloadStatus(id, DOWNLOAD_STATUS.FAILED));
         notifyUser('FDM: Erreur batch, telechargement via navigateur.', 'warning');
@@ -367,7 +362,6 @@ api.webRequest.onResponseStarted.addListener(
         let detectedType = null;
         const lowerUrl = url.toLowerCase().split('?')[0];
 
-        // 1. Check par extension
         for (const [group, exts] of Object.entries(DETECTION_RULES.extensions)) {
             if (exts.some(ext => lowerUrl.endsWith(ext))) {
                 detectedType = group;
@@ -375,7 +369,6 @@ api.webRequest.onResponseStarted.addListener(
             }
         }
 
-        // 2. Check par Content-Type
         if (!detectedType && responseHeaders) {
             const ctHeader = responseHeaders.find(h => h.name.toLowerCase() === 'content-type');
             if (ctHeader) {
@@ -390,35 +383,25 @@ api.webRequest.onResponseStarted.addListener(
         }
 
         if (detectedType) {
-            // Check settings: Disable subtitles if requested
-            if (detectedType === 'subtitles' && !extensionSettings.detectSubtitles) {
-                return;
-            }
+            if (detectedType === 'subtitles' && !extensionSettings.detectSubtitles) return;
 
-            // Check settings: Anti-Noise Minimum Size filter
             if (extensionSettings.minSizeEnabled && (detectedType === 'videos' || detectedType === 'segments')) {
                 const clHeader = responseHeaders.find(h => h.name.toLowerCase() === 'content-length');
                 if (clHeader) {
                     const sizeBytes = parseInt(clHeader.value, 10);
                     const minBytes = extensionSettings.minSizeMB * 1024 * 1024;
-                    if (!isNaN(sizeBytes) && sizeBytes < minBytes) {
-                        return; // Ignore file that is too small
-                    }
-                } else if (detectedType === 'segments') {
-                    // Small segments without Content-Length often are noise unless part of a big m3u8...
-                    // Let's keep them if no content-length since we can't be sure, or ignore? We keep.
+                    if (!isNaN(sizeBytes) && sizeBytes < minBytes) return;
                 }
             }
+            
             if (!tabStreams[tabId]) tabStreams[tabId] = [];
 
-            // Purge proactive des iframes morts AVANT d'ajouter le nouveau flux
             api.webNavigation.getAllFrames({ tabId: tabId }).then(frames => {
                 if (tabStreams[tabId] && frames) {
                     const aliveFrameIds = frames.map(f => f.frameId);
                     tabStreams[tabId] = tabStreams[tabId].filter(s =>
                         aliveFrameIds.includes(s.frameId) || s.type === 'youtube' || typeof s.frameId === 'undefined'
                     );
-                    persist();
                 }
 
                 if (!tabStreams[tabId].some(s => s.url === url)) {
@@ -433,50 +416,31 @@ api.webRequest.onResponseStarted.addListener(
 
                     tabStreams[tabId].push(streamEntry);
                     addToCatchLog(streamEntry);
-                    persist();
+                    persist(tabId);
 
                     api.tabs.get(tabId).then(tab => {
                         const s = tabStreams[tabId].find(x => x.url === url);
                         if (s) {
                             s.title = tab.title || "Vidéo détectée";
-
-                            // On tente de récupérer la véritable URL de l'iFrame !
                             if (frameId > 0) {
                                 api.webNavigation.getFrame({ tabId: tabId, frameId: frameId }).then(frame => {
                                     if (frame && frame.url && frame.url !== "about:blank") {
                                         s.pageUrl = frame.url;
-                                        persist();
+                                        persist(tabId);
                                     }
                                 }).catch(() => { });
                             } else if (!s.pageUrl || s.pageUrl === url) {
                                 s.pageUrl = tab.url || "";
                             }
-                            persist();
+                            persist(tabId);
                         }
                     }).catch(() => { });
 
                     const count = tabStreams[tabId].filter(s => s.type !== 'youtube').length;
-                    api.action.setBadgeText({
-                        text: count > 0 ? count.toString() : "",
-                        tabId: tabId
-                    });
+                    api.action.setBadgeText({ text: count > 0 ? count.toString() : "", tabId: tabId });
                     api.action.setBadgeBackgroundColor({ color: UI.BADGE_COLOR, tabId: tabId });
                 }
-            }).catch(() => {
-                // Fallback sécurité si l'onglet ferme entre temps
-                if (tabStreams[tabId] && !tabStreams[tabId].some(s => s.url === url)) {
-                    const se = {
-                        url: url,
-                        title: "Vidéo détectée",
-                        type: detectedType,
-                        timestamp: Date.now(),
-                        frameId: frameId
-                    };
-                    tabStreams[tabId].push(se);
-                    addToCatchLog(se);
-                    persist();
-                }
-            });
+            }).catch(() => {});
         }
     },
     { urls: ["<all_urls>"] },
@@ -486,29 +450,20 @@ api.webRequest.onResponseStarted.addListener(
 api.webNavigation.onBeforeNavigate.addListener(async (details) => {
     await hydrate();
     if (!tabStreams[details.tabId]) return;
-
     if (details.frameId === 0) {
-        // Navigation de la page principale : on vide tout
         tabStreams[details.tabId] = [];
     } else {
-        // Navigation d'un sous-lecteur (iframe) : on enlève unqiuement les flux de cet ancien lecteur
         tabStreams[details.tabId] = tabStreams[details.tabId].filter(s => s.frameId !== details.frameId && typeof s.frameId !== 'undefined');
     }
-    persist();
-
-    const count = tabStreams[details.tabId].length;
-    api.action.setBadgeText({
-        text: count > 0 ? count.toString() : "",
-        tabId: details.tabId
-    });
+    persist(details.tabId);
+    api.action.setBadgeText({ text: "", tabId: details.tabId });
 });
 
 api.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
-    // Handling SPA (Single Page Application) navigation
     await hydrate();
     if (details.frameId === 0 && tabStreams[details.tabId]) {
         tabStreams[details.tabId] = [];
-        persist();
+        persist(details.tabId);
         api.action.setBadgeText({ text: "", tabId: details.tabId });
     }
 });
@@ -519,50 +474,6 @@ api.tabs.onRemoved.addListener(async (tabId) => {
     persist();
 });
 
-// --- COOKIE MANAGEMENT (DRY) ---
-async function getCookiesForUrls(urls) {
-    const cookieMap = new Map();
-
-    for (const url of urls) {
-        if (!url) continue;
-        try {
-            // Standard cookies
-            const cookies1 = await api.cookies.getAll({ url: url });
-            cookies1.forEach(c => cookieMap.set(c.name, c.value));
-        } catch (e) {
-            // Silently ignore - some URLs may not have cookies
-        }
-        // Partitioned cookies (CHIPS) - Firefox only, skip on Chrome
-        if (typeof api.cookies.getAll === 'function' && BROWSER_ENV.isFirefox) {
-            try {
-                const cookies2 = await api.cookies.getAll({ url: url, partitionKey: {} });
-                cookies2.forEach(c => cookieMap.set(c.name, c.value));
-            } catch (e) {
-                // Silently ignore - partitioned cookies may not be supported
-            }
-        }
-    }
-
-    return Array.from(cookieMap.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
-}
-
-// --- YOUTUBE URL CLEANER ---
-function cleanYouTubeUrl(url) {
-    try {
-        const u = new URL(url);
-        const v = u.searchParams.get('v');
-        if (v) {
-            return "https://www.youtube.com/watch?v=" + v;
-        } else if (u.hostname === 'youtu.be') {
-            return "https://www.youtube.com/watch?v=" + u.pathname.substring(1);
-        }
-        return url; // Return original if parsing fails
-    } catch (e) {
-        return url; // Return original on error
-    }
-}
-
-// --- MESSAGE HANDLERS ---
 api.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "GET_STREAMS") {
         (async () => {
@@ -573,28 +484,18 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 return;
             }
 
-            // Nettoyage magique des iframes morts pour éviter l'accumulation !
             try {
                 const frames = await api.webNavigation.getAllFrames({ tabId: targetTabId });
                 if (tabStreams[targetTabId] && frames) {
                     const aliveFrameIds = frames.map(f => f.frameId);
-
-                    // On garde les flux si l'iframe existe toujours, ou si c'est YT, ou s'il n'a pas de frameId
                     tabStreams[targetTabId] = tabStreams[targetTabId].filter(s =>
                         aliveFrameIds.includes(s.frameId) || s.type === 'youtube' || typeof s.frameId === 'undefined'
                     );
-                    persist();
-
-                    const count = tabStreams[targetTabId].filter(s => s.type !== 'youtube').length;
-                    api.action.setBadgeText({ text: count > 0 ? count.toString() : "", tabId: targetTabId });
+                    persist(targetTabId);
                 }
-            } catch (e) {
-                // ignore
-            }
+            } catch (e) {}
 
             let rawStreams = [...(tabStreams[targetTabId] || [])];
-
-            // Auto-inject YouTube stream if on YouTube
             const tabUrl = message.tabUrl || (sender && sender.tab ? sender.tab.url : "");
             const tabTitle = message.tabTitle || (sender && sender.tab ? sender.tab.title : "YouTube Video");
 
@@ -610,24 +511,17 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
             }
 
-            // --- PROACTIVE UNIQUE FILTER (Anti-Duplicates) ---
             const uniqueMap = new Map();
             rawStreams.forEach(s => {
                 const key = s.url;
-                if (!uniqueMap.has(key) || s.timestamp > uniqueMap.get(key).timestamp) {
-                    uniqueMap.set(key, s);
-                }
+                if (!uniqueMap.has(key) || s.timestamp > uniqueMap.get(key).timestamp) uniqueMap.set(key, s);
             });
 
             const streams = Array.from(uniqueMap.values());
-
-            // Apply priority sorting (Using global getStreamPriority)
             streams.sort((a, b) => getStreamPriority(b) - getStreamPriority(a));
-
             sendResponse(streams);
         })();
-
-        return true; // Indicates async response
+        return true;
     } else if (message.type === "GET_SETTINGS") {
         (async () => {
             await hydrate();
@@ -639,27 +533,18 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
             await hydrate();
             const tabId = sender.tab ? sender.tab.id : null;
             if (!tabId) return;
-
             if (!tabStreams[tabId]) tabStreams[tabId] = [];
-
             if (!tabStreams[tabId].some(s => s.url === message.url)) {
-                const streamEntry = {
+                const entry = {
                     url: message.url,
                     title: sender.tab.title || "Vidéo cachée",
                     type: message.streamType || 'videos',
                     timestamp: Date.now(),
                     pageUrl: message.pageUrl || sender.url || sender.tab.url || ""
                 };
-                tabStreams[tabId].push(streamEntry);
-                addToCatchLog(streamEntry);
-                persist();
-
-                const count = tabStreams[tabId].filter(s => s.type !== 'youtube').length;
-                api.action.setBadgeText({
-                    text: count > 0 ? count.toString() : "",
-                    tabId: tabId
-                });
-                api.action.setBadgeBackgroundColor({ color: UI.BADGE_COLOR, tabId: tabId });
+                tabStreams[tabId].push(entry);
+                addToCatchLog(entry);
+                persist(tabId);
             }
         })();
     } else if (message.type === "SEND_TO_FDM") {
@@ -669,111 +554,21 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
             let finalUrl = message.url;
             let cookieStr = "";
 
-            if (!message.isYoutube) {
-                // Use extracted cookie logic
-                cookieStr = await getCookiesForUrls([finalReferer, finalUrl]);
-            } else {
+            if (!message.isYoutube) cookieStr = await getCookiesForUrls([finalReferer, finalUrl]);
+            else {
                 finalReferer = YOUTUBE_FIX.CLEAR_REFERER;
                 finalUrl = cleanYouTubeUrl(message.url);
             }
             sendToFDM(finalUrl, message.filename, finalReferer, cookieStr, message.isYoutube);
         })();
-    } else if (message.type === "DOWNLOAD_DIRECT") {
-        (async () => {
-            await hydrate();
-            const tabId = sender.tab.id;
-            const referer = sender.tab.url;
-            let targetUrl = message.url;
-            let filename = "video";
-            let isYoutube = referer && (referer.includes("youtube.com/watch") || referer.includes("youtu.be/"));
-            let streams = tabStreams[tabId] || [];
-
-            // If we have detected streams, pick the best one
-            if (streams.length > 0) {
-                const bestStream =
-                    streams.find(s => s.type === 'youtube') ||
-                    streams.find(s => s.type === 'manifests') ||
-                    streams.find(s => s.type === 'videos') ||
-                    streams.find(s => s.type === 'segments') ||
-                    streams[0];
-                targetUrl = bestStream.url;
-                filename = bestStream.title || "video";
-                isYoutube = isYoutube || (bestStream.type === 'youtube');
-            }
-
-            if (!targetUrl) {
-                if (isYoutube) targetUrl = referer;
-                else return; // Nothing to download
-            }
-
-            let cookieStr = "";
-            let finalReferer = referer;
-
-            if (!isYoutube) {
-                // Use extracted cookie logic (DRY)
-                cookieStr = await getCookiesForUrls([referer, targetUrl]);
-            } else {
-                finalReferer = YOUTUBE_FIX.CLEAR_REFERER; // Fix 413 error on YouTube
-                targetUrl = cleanYouTubeUrl(targetUrl);
-            }
-
-            sendToFDM(targetUrl, filename, finalReferer, cookieStr, isYoutube);
-        })();
-    } else if (message.type === "DOWNLOAD_BATCH") {
-        (async () => {
-            const batchItems = message.items || [];
-            if (batchItems.length > 0) {
-                sendBatchToFDM(batchItems);
-            }
-        })();
-    } else if (message.type === "GET_CATCH_LOG") {
-        (async () => {
-            await hydrate();
-            sendResponse(catchLog);
-        })();
-        return true;
     } else if (message.type === "CLEAR_CATCH_LOG") {
         catchLog = [];
         persist();
-        sendResponse({ success: true });
-    } else if (message.type === "GET_DOWNLOAD_HISTORY") {
-        (async () => {
-            sendResponse(downloadHistory);
-        })();
-        return true;
-    } else if (message.type === "GET_DOWNLOAD_STATS") {
-        (async () => {
-            const totalDownloads = downloadHistory.length;
-            const sentToFdm = downloadHistory.filter(d => d.status === DOWNLOAD_STATUS.SENT).length;
-            const fallbackBrowser = downloadHistory.filter(d => d.status === DOWNLOAD_STATUS.FALLBACK).length;
-            const failed = downloadHistory.filter(d => d.status === DOWNLOAD_STATUS.FAILED).length;
-
-            // Stats by type
-            const byType = {};
-            downloadHistory.forEach(d => {
-                const ext = d.filename.split('.').pop()?.toLowerCase() || 'unknown';
-                byType[ext] = (byType[ext] || 0) + 1;
-            });
-
-            sendResponse({
-                total: totalDownloads,
-                sentToFdm: sentToFdm,
-                fallbackBrowser: fallbackBrowser,
-                failed: failed,
-                byType: byType,
-                lastDownload: downloadHistory.length > 0 ? downloadHistory[0].timestamp : null
-            });
-        })();
-        return true;
-    } else if (message.type === "CLEAR_DOWNLOAD_HISTORY") {
-        downloadHistory = [];
-        api.storage.local.set({ downloadHistory: [] }).catch(() => {});
         sendResponse({ success: true });
     }
     return true;
 });
 
-// --- ONBOARDING: Welcome Page ---
 api.runtime.onInstalled.addListener((details) => {
     if (details.reason === 'install') {
         api.tabs.create({ url: api.runtime.getURL('onboarding.html') });

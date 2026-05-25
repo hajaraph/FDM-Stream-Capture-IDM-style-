@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "FDM Stream Capture",
-    "version": "1.8",
+    "version": "1.9.0",
     "description": "Capture video/audio streams and send to Free Download Manager",
     "permissions": [
         "webRequest",
@@ -10,7 +10,8 @@
         "tabs",
         "downloads",
         "nativeMessaging",
-        "cookies"
+        "cookies",
+        "sidePanel"
     ],
     "host_permissions": [
         "<all_urls>"
@@ -28,10 +29,7 @@
                 "<all_urls>"
             ],
             "js": [
-                "browser-compat.js",
-                "constants.js",
-                "config.js",
-                "content.js"
+                "content-loader.js"
             ],
             "all_frames": true,
             "run_at": "document_end"
@@ -41,8 +39,23 @@
         "default_popup": "popup.html",
         "default_title": "FDM Stream Capture"
     },
+    "side_panel": {
+        "default_path": "sidebar.html"
+    },
     "icons": {
         "48": "icons/icon48.png",
         "128": "icons/icon128.png"
-    }
+    },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "content.js",
+                "browser-compat.js",
+                "constants.js",
+                "config.js",
+                "utils.js"
+            ],
+            "matches": ["<all_urls>"]
+        }
+    ]
 }

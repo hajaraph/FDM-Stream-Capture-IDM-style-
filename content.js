@@ -1,27 +1,30 @@
-// Modern IDM-style overlay button with a dropdown list for streams
+/**
+ * FDM Helper - Content Script (ESM)
+ * Injected via content-loader.js
+ */
+
+import api from './browser-compat.js';
+import { UI, TIMING } from './constants.js';
+
 let fdmButton = null;
 let currentVideo = null;
 let dropdownMenu = null;
 let hideTimeout = null;
-
-// --- SAFETY: Ensure `api` is available in Content Script Scope ---
-if (typeof api === 'undefined') {
-    var api = typeof browser !== 'undefined' ? browser : chrome;
-}
+let fdmShadowRoot = null;
+let fdmContainer = null;
 
 // --- NOTIFICATION SYSTEM ---
+api.runtime.onMessage.addListener((message) => {
+    if (message.type === 'FDM_NOTIFICATION') {
+        showFDMNotification(message.message, message.notificationType);
+    }
+});
+
 function showFDMNotification(message, type = 'info') {
     const existing = document.getElementById('fdm-notification');
     if (existing) existing.remove();
 
-    const colors = {
-        success: { bg: '#10b981', border: '#059669', icon: '✓' },
-        error: { bg: '#ef4444', border: '#dc2626', icon: '✕' },
-        warning: { bg: '#f59e0b', border: '#d97706', icon: '⚠' },
-        info: { bg: '#3b82f6', border: '#2563eb', icon: 'ℹ' }
-    };
-
-    const color = colors[type] || colors.info;
+    const color = UI.NOTIFICATION_COLORS[type] || UI.NOTIFICATION_COLORS.info;
     const notification = document.createElement('div');
     notification.id = 'fdm-notification';
     notification.style.cssText = `position:fixed;top:20px;right:20px;z-index:2147483647;background:${color.bg};color:#fff;padding:12px 16px;border-radius:8px;font-size:12px;font-weight:600;font-family:system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,0.2);border:1px solid ${color.border};display:flex;align-items:center;gap:8px;max-width:320px;cursor:pointer;`;
@@ -38,27 +41,20 @@ function showFDMNotification(message, type = 'info') {
     notification.appendChild(textSpan);
     document.body.appendChild(notification);
 
-    setTimeout(() => notification.remove(), 3000);
+    setTimeout(() => notification.remove(), TIMING.NOTIFICATION_DISMISS_MS);
     notification.onclick = () => notification.remove();
 }
 
-// --- PREMIUM UI: Shadow DOM Wrapper ---
-let fdmShadowRoot = null;
-let fdmContainer = null;
-
+// --- UI Logic ---
 function detectSiteColor() {
-    // 1. Check for Major Streaming Platforms (Presets)
     if (window.location.hostname.includes('youtube.com')) return '#ff0000';
     if (window.location.hostname.includes('dailymotion.com')) return '#0062ff';
     if (window.location.hostname.includes('twitch.tv')) return '#9146ff';
     if (window.location.hostname.includes('vimeo.com')) return '#1ab7ea';
-    if (window.location.hostname.includes('uqload.')) return '#f59e0b'; // Amber thematic for Uqload
 
-    // 2. Try to get theme-color meta tag
     const metaTheme = document.querySelector('meta[name="theme-color"]');
     if (metaTheme && metaTheme.content) return metaTheme.content;
 
-    // 3. Fallback to Favicon Color ? (Simple fallback here)
     return '#2563eb';
 }
 
@@ -69,14 +65,11 @@ function ensureShadowRoot() {
     fdmContainer.style.cssText = 'position:absolute;top:0;left:0;width:0;height:0;z-index:2147483647;pointer-events:none;';
     document.documentElement.appendChild(fdmContainer);
     
-    // Create Shadow Root (mode: open for easier debugging if needed)
     fdmShadowRoot = fdmContainer.attachShadow({ mode: 'open' });
     
-    // Apply Dynamic Site Identity
     const brandColor = detectSiteColor();
     fdmContainer.style.setProperty('--fdm-brand', brandColor);
     
-    // Create a 15% opacity version (handling hex ONLY for simplicity)
     const mutedColor = brandColor.startsWith('#') && brandColor.length === 7 
         ? `${brandColor}26` 
         : 'rgba(37, 99, 235, 0.15)';
@@ -95,7 +88,7 @@ function injectPremiumStyles() {
 
         #fdm-download-button {
             position: fixed;
-            z-index: 2147483646;
+            z-index: ${UI.Z_INDEX_BUTTON};
             height: 44px;
             width: 44px;
             border-radius: 22px;
@@ -167,7 +160,7 @@ function injectPremiumStyles() {
             visibility: hidden;
             opacity: 0;
             flex-direction: column;
-            z-index: 2147483647;
+            z-index: ${UI.Z_INDEX_DROPDOWN};
             overflow: hidden;
             padding: 6px;
             font-family: 'Inter', system-ui, sans-serif;
@@ -208,11 +201,6 @@ function injectPremiumStyles() {
             transform: translateX(8px);
             border-left: 4px solid var(--fdm-brand);
             padding-left: 10px;
-        }
-
-        .fdm-dropdown-item:active {
-            transform: translateX(4px) scale(0.96);
-            background-color: var(--fdm-brand-muted);
         }
 
         .fdm-type-badge {
@@ -279,7 +267,7 @@ function createFdmButton() {
             
             dropdownMenu.style.visibility = 'visible';
             dropdownMenu.style.opacity = '1';
-            dropdownMenu.style.pointerEvents = 'auto'; // FIX: Réactiver les clics
+            dropdownMenu.style.pointerEvents = 'auto'; 
             dropdownMenu.style.transform = 'translateY(0) scale(1)';
         }
     });
@@ -293,7 +281,6 @@ function createFdmButton() {
     });
 
     document.addEventListener('click', (e) => {
-        // Since it's shadow DOM, we check differently
         if (!fdmContainer.contains(e.target)) hideMenu();
     });
 }
@@ -309,11 +296,8 @@ function hideMenu() {
 function positionButton(video) {
     if (!video || !fdmButton) return;
     const rect = video.getBoundingClientRect();
-    
-    // Check if video is visible and has size
     if (rect.width < 50 || rect.height < 50) return;
 
-    // Fixed positioning relative to the viewport (shadow root handles isolation)
     fdmButton.style.left = (rect.left + 16) + 'px';
     fdmButton.style.top = (rect.top + 16) + 'px';
     fdmButton.style.display = 'flex';
@@ -393,8 +377,6 @@ function addDropdownItem(stream, index = 0) {
 
     item.addEventListener('click', (e) => {
         e.stopPropagation();
-        
-        // Visual feedback
         item.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
         item.style.color = '#059669';
         
@@ -406,10 +388,8 @@ function addDropdownItem(stream, index = 0) {
             isYoutube: stream.type === 'youtube'
         });
         
-        // We only hide the menu after a delay, but we KEEP the main button visible
         setTimeout(() => {
             hideMenu();
-            // Restore item style for next time
             item.style.backgroundColor = '';
             item.style.color = '';
         }, 800);
@@ -417,9 +397,6 @@ function addDropdownItem(stream, index = 0) {
 
     dropdownMenu.appendChild(item);
 }
-
-// --- OPTIMIZED DETECTION ENGINE (2026) ---
-const observerOptions = { childList: true, subtree: true };
 
 function handleVideoAttached(video) {
     if (video.dataset.fdmAttached) return;
@@ -465,9 +442,8 @@ const videoObserver = new MutationObserver((mutations) => {
     }
 });
 
-// Initial scan
 document.querySelectorAll('video').forEach(handleVideoAttached);
-videoObserver.observe(document.body, observerOptions);
+videoObserver.observe(document.body, { childList: true, subtree: true });
 
 window.addEventListener('scroll', () => { if (fdmButton && dropdownMenu && dropdownMenu.style.visibility !== 'visible') fdmButton.style.display = 'none'; }, { passive: true });
 window.addEventListener('resize', () => { if (fdmButton && dropdownMenu && dropdownMenu.style.visibility !== 'visible') fdmButton.style.display = 'none'; }, { passive: true });

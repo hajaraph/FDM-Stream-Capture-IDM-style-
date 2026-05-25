@@ -1,16 +1,17 @@
 {
     "manifest_version": 3,
     "name": "__MSG_extensionName__",
-    "version": "1.8.2",
+    "version": "1.9.0",
     "description": "__MSG_extensionDescription__",
     "default_locale": "fr",
     "browser_specific_settings": {
         "gecko": {
             "id": "stream_catcher_fdm@freedownloadmanager.org",
+            "strict_min_version": "115.0",
             "data_collection_permissions": {
-                "required": [
-                    "none"
-                ]
+                "required": ["none"],
+                "optional": ["none"],
+                "disclosure_url": "https://freedownloadmanager.org/privacy.htm"
             }
         }
     },
@@ -21,17 +22,21 @@
         "tabs",
         "downloads",
         "nativeMessaging",
-        "cookies"
+        "cookies",
+        "sidebars"
     ],
+    "sidebar_action": {
+        "default_title": "FDM Catch Log",
+        "default_panel": "sidebar.html",
+        "default_icon": "icons/icon48.png",
+        "open_at_install": false
+    },
     "host_permissions": [
         "<all_urls>"
     ],
     "background": {
+        "type": "module",
         "scripts": [
-            "browser-compat.js",
-            "constants.js",
-            "config.js",
-            "utils.js",
             "background.js"
         ]
     },
@@ -44,10 +49,7 @@
                 "<all_urls>"
             ],
             "js": [
-                "browser-compat.js",
-                "constants.js",
-                "config.js",
-                "content.js"
+                "content-loader.js"
             ],
             "all_frames": true,
             "run_at": "document_end"
@@ -63,7 +65,15 @@
     },
     "web_accessible_resources": [
         {
-            "resources": ["onboarding.html", "FDM_Linker.bat"],
+            "resources": [
+                "onboarding.html", 
+                "FDM_Linker.bat",
+                "content.js",
+                "browser-compat.js",
+                "constants.js",
+                "config.js",
+                "utils.js"
+            ],
             "matches": ["<all_urls>"]
         }
     ]

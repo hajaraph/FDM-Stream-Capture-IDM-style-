@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>FDM Catch Log</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #1f2937;
+            --brand: #2563eb;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --hover: #f3f4f6;
+            --yt: #ef4444;
+            --hls: #f59e0b;
+            --vid: #10b981;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111827;
+                --text: #f9fafb;
+                --muted: #9ca3af;
+                --border: #374151;
+                --hover: #1f2937;
+            }
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 13px;
+            overflow-x: hidden;
+        }
+
+        .header {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 10;
+        }
+
+        .header h1 {
+            font-size: 14px;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+            color: var(--muted);
+            border-radius: 4px;
+        }
+
+        .btn-icon:hover {
+            background: var(--hover);
+            color: var(--text);
+        }
+
+        #stream-list {
+            padding: 8px;
+        }
+
+        .group-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin: 16px 4px 8px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .stream-card {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .stream-card:hover {
+            border-color: var(--brand);
+            background: var(--hover);
+        }
+
+        .stream-title {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+            padding-right: 20px;
+        }
+
+        .stream-meta {
+            font-size: 11px;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .type-tag {
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 9px;
+            color: white;
+        }
+
+        .type-youtube { background: var(--yt); }
+        .type-manifests { background: var(--hls); }
+        .type-videos { background: var(--vid); }
+        .type-segments { background: var(--muted); }
+
+        .empty-state {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .download-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            background: var(--brand);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .stream-card:hover .download-btn {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>FDM Catch Log</h1>
+        <div class="actions">
+            <button class="btn-icon" id="clear-btn" title="Vider le log">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+            <button class="btn-icon" id="settings-btn" title="Options">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="stream-list">
+        <!-- Streams will be injected here -->
+    </div>
+
+    <template id="stream-template">
+        <div class="stream-card">
+            <div class="stream-title"></div>
+            <div class="stream-meta">
+                <span class="type-tag"></span>
+                <span class="stream-time"></span>
+            </div>
+            <div class="download-btn">
+                <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            </div>
+        </div>
+    </template>
+
+    <script type="module" src="sidebar.js"></script>
+</body>
+</html>

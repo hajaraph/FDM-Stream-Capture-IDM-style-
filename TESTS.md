@@ -28,9 +28,16 @@ This document describes the test strategy for the FDM Helper browser extension.
   - Verify MutationObserver triggers only on relevant DOM changes
   - Check memory usage during extended browsing
 
-- [ ] Debounced Storage
-  - Verify rapid stream detections don't cause excessive disk writes
-  - Check that persist() is debounced (500ms)
+- [ ] Session Storage
+  - Verify tabStreams survive background suspension (MV3)
+  - Verify tabStreams are cleared when browser restarts
+  - Verify no excessive storage.local writes (using session instead)
+
+- [ ] Sidebar (Firefox 130+)
+  - Verify sidebar opens correctly
+  - Verify sidebar updates in real-time when new streams are detected
+  - Verify sidebar syncs with active tab changes
+  - Test 'Clear Log' button in sidebar
 
 - [ ] Cookie Logic DRY
   - Verify getCookiesForUrls() is used in both SEND_TO_FDM and DOWNLOAD_DIRECT

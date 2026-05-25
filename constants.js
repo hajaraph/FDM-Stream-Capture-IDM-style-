@@ -1,11 +1,13 @@
-// Centralized Constants - Shared between background.js and content.js
+/**
+ * Centralized Constants - Shared between background.js and content.js
+ */
 
 // Storage Limits
-const MAX_DOWNLOAD_HISTORY = 500;
-const MAX_CATCH_LOG = 100;
+export const MAX_DOWNLOAD_HISTORY = 500;
+export const MAX_CATCH_LOG = 100;
 
 // Timing Constants (milliseconds)
-const TIMING = {
+export const TIMING = {
     PERSIST_DEBOUNCE_MS: 500,
     NATIVE_PORT_DISCONNECT_MS: 1000,
     NOTIFICATION_DISMISS_MS: 4000,
@@ -21,7 +23,7 @@ const TIMING = {
 };
 
 // Size and Length Limits
-const LIMITS = {
+export const LIMITS = {
     MIN_HOSTNAME_LENGTH: 3,
     MIN_NAME_LENGTH: 2,
     MAX_TITLE_LENGTH: 50,
@@ -31,7 +33,7 @@ const LIMITS = {
 };
 
 // UI Constants
-const UI = {
+export const UI = {
     BADGE_COLOR: "#FF0000",
     Z_INDEX_BUTTON: 2147483647,
     Z_INDEX_DROPDOWN: 2147483648,
@@ -44,10 +46,10 @@ const UI = {
 };
 
 // Security
-const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
+export const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
 
 // YouTube
-const YOUTUBE_FIX = {
+export const YOUTUBE_FIX = {
     CLEAR_REFERER: "", // Fix 413 error on YouTube
     DOMAINS: ['youtube.com', 'youtu.be'],
     WATCH_PATTERN: /youtube\.com\/watch|youtu\.be\//i
