@@ -3,37 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <title>FDM Catch Log</title>
+    <link rel="stylesheet" href="theme.css">
     <style>
         :root {
-            --bg: #ffffff;
-            --text: #1f2937;
-            --brand: #2563eb;
-            --muted: #6b7280;
-            --border: #e5e7eb;
-            --hover: #f3f4f6;
-            --yt: #ef4444;
-            --hls: #f59e0b;
-            --vid: #10b981;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #111827;
-                --text: #f9fafb;
-                --muted: #9ca3af;
-                --border: #374151;
-                --hover: #1f2937;
-            }
+            --brand: var(--accent);
+            --muted: var(--text-muted);
+            --hover: var(--surface-hover);
+            --yt: var(--type-youtube);
+            --hls: var(--type-manifests);
+            --vid: var(--type-videos);
         }
 
         body {
-            font-family: system-ui, -apple-system, sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             margin: 0;
             padding: 0;
             background: var(--bg);
             color: var(--text);
             font-size: 13px;
             overflow-x: hidden;
+            position: relative;
+            z-index: 1;
         }
 
         .header {
@@ -44,7 +34,9 @@
             justify-content: space-between;
             position: sticky;
             top: 0;
-            background: var(--bg);
+            background: var(--surface);
+            backdrop-filter: blur(16px) saturate(140%);
+            -webkit-backdrop-filter: blur(16px) saturate(140%);
             z-index: 10;
         }
 
@@ -88,17 +80,21 @@
 
         .stream-card {
             padding: 10px;
-            border-radius: 8px;
+            border-radius: 10px;
             margin-bottom: 8px;
             border: 1px solid var(--border);
-            transition: all 0.2s;
+            background: var(--surface);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), transform 0.2s var(--ease);
             cursor: pointer;
             position: relative;
         }
 
         .stream-card:hover {
-            border-color: var(--brand);
-            background: var(--hover);
+            border-color: var(--border-strong);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
         }
 
         .stream-title {
@@ -151,7 +147,7 @@
             transform: translateY(-50%);
             width: 24px;
             height: 24px;
-            background: var(--brand);
+            background: var(--accent);
             border-radius: 50%;
             display: flex;
             align-items: center;

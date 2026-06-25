@@ -1,18 +1,20 @@
 {
     "manifest_version": 3,
     "name": "__MSG_extensionName__",
-    "version": "1.9.0",
+    "version": "2.0.0",
     "description": "__MSG_extensionDescription__",
     "default_locale": "fr",
     "browser_specific_settings": {
         "gecko": {
             "id": "stream_catcher_fdm@freedownloadmanager.org",
-            "strict_min_version": "115.0",
+            "strict_min_version": "140.0",
             "data_collection_permissions": {
-                "required": ["none"],
-                "optional": ["none"],
-                "disclosure_url": "https://freedownloadmanager.org/privacy.htm"
+                "required": ["websiteActivity"],
+                "optional": []
             }
+        },
+        "gecko_android": {
+            "strict_min_version": "142.0"
         }
     },
     "permissions": [
@@ -22,8 +24,7 @@
         "tabs",
         "downloads",
         "nativeMessaging",
-        "cookies",
-        "sidebars"
+        "cookies"
     ],
     "sidebar_action": {
         "default_title": "FDM Catch Log",

@@ -1,59 +1,50 @@
 @echo off
-REM FDM Helper - Build Script for Firefox and Chrome
-REM Usage: build.bat [firefox|chrome]
+REM FDM Stream Capture - Build Script (Firefox XPI)
+REM Usage: build.bat
 
 setlocal enabledelayedexpansion
 
-if "%1"=="" goto :help
-if "%1"=="firefox" goto :build_firefox
-if "%1"=="chrome" goto :build_chrome
+REM --- Lecture version depuis manifest.json ---
+set "VERSION="
+for /f "tokens=2 delims=:, " %%A in ('findstr /i "\"version\"" manifest.json') do (
+    if not defined VERSION set "VERSION=%%~A"
+)
+set "XPI_NAME=fdm-stream-capture-v%VERSION%.xpi"
 
-:help
-echo Usage: build.bat [firefox^|chrome]
-echo   firefox  - Build Firefox package
-echo   chrome   - Build Chrome/Edge package
-goto :end
+echo Building Firefox XPI v%VERSION%...
 
-:build_firefox
-echo Building Firefox package...
+REM --- Nettoyage ---
 if exist "dist\firefox" rmdir /s /q "dist\firefox"
 mkdir "dist\firefox"
-xcopy /E /I /Y /Q "icons" "dist\firefox\icons"
-xcopy /E /I /Y /Q "_locales" "dist\firefox\_locales"
-copy "manifest.json" "dist\firefox\manifest.json" >nul
-copy "constants.js" "dist\firefox\constants.js" >nul
-copy "config.js" "dist\firefox\config.js" >nul
-copy "utils.js" "dist\firefox\utils.js" >nul
-copy "browser-compat.js" "dist\firefox\browser-compat.js" >nul
-copy "background.js" "dist\firefox\background.js" >nul
-copy "content.js" "dist\firefox\content.js" >nul
-copy "popup.js" "dist\firefox\popup.js" >nul
-copy "popup.html" "dist\firefox\popup.html" >nul
-copy "options.js" "dist\firefox\options.js" >nul
-copy "options.html" "dist\firefox\options.html" >nul
-echo Firefox package built successfully in dist\firefox\
-goto :end
 
-:build_chrome
-echo Building Chrome package...
-if exist "dist\chrome" rmdir /s /q "dist\chrome"
-mkdir "dist\chrome"
-xcopy /E /I /Y /Q "icons" "dist\chrome\icons"
-xcopy /E /I /Y /Q "_locales" "dist\chrome\_locales"
-copy "manifest-chrome.json" "dist\chrome\manifest.json" >nul
-copy "constants.js" "dist\chrome\constants.js" >nul
-copy "config.js" "dist\chrome\config.js" >nul
-copy "utils.js" "dist\chrome\utils.js" >nul
-copy "browser-compat.js" "dist\chrome\browser-compat.js" >nul
-copy "background.js" "dist\chrome\background.js" >nul
-copy "content.js" "dist\chrome\content.js" >nul
-copy "popup.js" "dist\chrome\popup.js" >nul
-copy "popup.html" "dist\chrome\popup.html" >nul
-copy "options.js" "dist\chrome\options.js" >nul
-copy "options.html" "dist\chrome\options.html" >nul
-echo Chrome package built successfully in dist\chrome\
-goto :end
+REM --- Copie des fichiers ---
+xcopy /E /I /Y /Q "icons" "dist\firefox\icons" >nul
+xcopy /E /I /Y /Q "_locales" "dist\firefox\_locales" >nul
+copy "manifest.json"      "dist\firefox\manifest.json"      >nul
+copy "constants.js"       "dist\firefox\constants.js"       >nul
+copy "config.js"          "dist\firefox\config.js"          >nul
+copy "utils.js"           "dist\firefox\utils.js"           >nul
+copy "browser-compat.js"  "dist\firefox\browser-compat.js"  >nul
+copy "background.js"      "dist\firefox\background.js"      >nul
+copy "content.js"         "dist\firefox\content.js"         >nul
+copy "content-loader.js"  "dist\firefox\content-loader.js"  >nul
+copy "popup.js"           "dist\firefox\popup.js"           >nul
+copy "popup.html"         "dist\firefox\popup.html"         >nul
+copy "theme.css"          "dist\firefox\theme.css"          >nul
+copy "sidebar.js"         "dist\firefox\sidebar.js"         >nul
+copy "sidebar.html"       "dist\firefox\sidebar.html"       >nul
+copy "options.js"         "dist\firefox\options.js"         >nul
+copy "options.html"       "dist\firefox\options.html"       >nul
+copy "onboarding.js"      "dist\firefox\onboarding.js"      >nul
+copy "onboarding.html"    "dist\firefox\onboarding.html"    >nul
 
-:end
+REM --- Création du XPI avec chemins forward-slash (requis Firefox) ---
+if exist "dist\%XPI_NAME%" del /q "dist\%XPI_NAME%"
+
+powershell -NoProfile -Command ^
+    "Add-Type -Assembly System.IO.Compression.FileSystem; $src = Resolve-Path 'dist\firefox'; $out = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath('dist\%XPI_NAME%'); $zip = [IO.Compression.ZipFile]::Open($out, 'Create'); Get-ChildItem -Path $src -Recurse -File | ForEach-Object { $entry = $_.FullName.Substring($src.Path.Length + 1) -replace '\\','/'; [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $entry, 'Optimal') | Out-Null }; $zip.Dispose()"
+
+echo XPI cree : dist\%XPI_NAME%
+
 echo.
 echo Done!

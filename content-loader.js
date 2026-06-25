@@ -1,9 +1,9 @@
 /**
  * FDM Helper - Content Script Loader
- * Dynamically imports the ESM content script.
+ * Injects content.js as a module script to avoid dynamic import() AMO warning.
  */
 
-(async () => {
-    const src = chrome.runtime.getURL('content.js');
-    await import(src);
-})();
+const s = document.createElement('script');
+s.type = 'module';
+s.src = browser.runtime.getURL('content.js');
+(document.head || document.documentElement).appendChild(s);

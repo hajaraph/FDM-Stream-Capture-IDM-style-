@@ -15,3 +15,4 @@ yarn-error.log*
 /tmp/
 .gemini/
 setup-fdm-link.ps1
+dist

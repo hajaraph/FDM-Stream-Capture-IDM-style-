@@ -1,0 +1,109 @@
+/**
+ * FDM Stream Capture - Shared Design Tokens (v2)
+ * Single source of truth for popup, sidebar, options, onboarding.
+ */
+
+:root {
+    color-scheme: light dark;
+
+    --bg: #f6f8fc;
+    --surface: rgba(255, 255, 255, 0.72);
+    --surface-solid: #ffffff;
+    --surface-hover: #f1f5f9;
+    --border: rgba(15, 23, 42, 0.08);
+    --border-strong: rgba(15, 23, 42, 0.16);
+
+    --text: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft: rgba(37, 99, 235, 0.12);
+    --on-accent: #ffffff;
+
+    --type-youtube: #ef4444;
+    --type-manifests: #10b981;
+    --type-videos: #3b82f6;
+    --type-segments: #f59e0b;
+    --type-others: #64748b;
+
+    --st-pending: #f59e0b;
+    --st-sent: #10b981;
+    --st-fallback: #3b82f6;
+    --st-failed: #ef4444;
+
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 10px 25px -8px rgba(15, 23, 42, 0.18), 0 4px 8px -6px rgba(15, 23, 42, 0.10);
+    --shadow-glow: 0 0 0 1px rgba(37, 99, 235, 0.10), 0 8px 24px -8px rgba(37, 99, 235, 0.25);
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #0b0f17;
+        --surface: rgba(22, 27, 38, 0.66);
+        --surface-solid: #161b26;
+        --surface-hover: #1e2532;
+        --border: rgba(255, 255, 255, 0.08);
+        --border-strong: rgba(255, 255, 255, 0.16);
+
+        --text: #e6edf6;
+        --text-secondary: #aab4c4;
+        --text-muted: #6b7689;
+
+        --accent: #4f86f7;
+        --accent-hover: #6f9bf9;
+        --accent-soft: rgba(79, 134, 247, 0.18);
+
+        --shadow-md: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+        --shadow-glow: 0 0 0 1px rgba(79, 134, 247, 0.25), 0 8px 28px -8px rgba(79, 134, 247, 0.35);
+    }
+}
+
+
+/* Status pill (download lifecycle) */
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    letter-spacing: 0.01em;
+    border: 1px solid transparent;
+}
+
+.status-pill::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.status-pill.pending  { color: var(--st-pending);  background: color-mix(in srgb, var(--st-pending) 14%, transparent);  border-color: color-mix(in srgb, var(--st-pending) 30%, transparent); }
+.status-pill.sent     { color: var(--st-sent);     background: color-mix(in srgb, var(--st-sent) 14%, transparent);     border-color: color-mix(in srgb, var(--st-sent) 30%, transparent); }
+.status-pill.fallback { color: var(--st-fallback); background: color-mix(in srgb, var(--st-fallback) 14%, transparent); border-color: color-mix(in srgb, var(--st-fallback) 30%, transparent); }
+.status-pill.failed   { color: var(--st-failed);   background: color-mix(in srgb, var(--st-failed) 14%, transparent);   border-color: color-mix(in srgb, var(--st-failed) 30%, transparent); }
+.status-pill.completed{ color: var(--st-sent);     background: color-mix(in srgb, var(--st-sent) 14%, transparent);     border-color: color-mix(in srgb, var(--st-sent) 30%, transparent); }
+
+.status-pill.pending::before { animation: pillPulse 1.2s var(--ease) infinite; }
+
+@keyframes pillPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.7); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}

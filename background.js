@@ -42,6 +42,9 @@ let catchLog = [];
 let isHydrated = false;
 let hydratePromise = null;
 
+// Feature 5 — URLs already sent this session (anti-duplicate)
+const sentUrls = new Set();
+
 // --- DOWNLOAD TRACKING ---
 let downloadQueue = []; 
 let downloadHistory = []; 
@@ -214,6 +217,45 @@ function getSmartFileName(rawTitle, url, isYoutube = false) {
     return name;
 }
 
+const TRACKING_PARAMS = [
+    'utm_source','utm_medium','utm_campaign','utm_term','utm_content',
+    'fbclid','gclid','msclkid','ref','_t','tracking_id','trk','source',
+    'mc_cid','mc_eid','igshid','si','pp'
+];
+
+function cleanStreamUrl(url) {
+    try {
+        const u = new URL(url);
+        // Preserve all params for HLS/DASH — removing them can break token auth
+        if (u.pathname.match(/\.(m3u8|mpd|ts|m4s)$/i)) return url;
+        TRACKING_PARAMS.forEach(p => u.searchParams.delete(p));
+        return u.toString();
+    } catch { return url; }
+}
+
+function parseM3U8(text, baseUrl) {
+    const lines = text.split('\n');
+    const variants = [];
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line.startsWith('#EXT-X-STREAM-INF:')) continue;
+        const attrs = line.slice('#EXT-X-STREAM-INF:'.length);
+        const bwMatch  = attrs.match(/BANDWIDTH=(\d+)/);
+        const resMatch = attrs.match(/RESOLUTION=([0-9]+x[0-9]+)/);
+        const nextLine = (lines[i + 1] || '').trim();
+        if (!nextLine || nextLine.startsWith('#')) continue;
+        let varUrl;
+        try { varUrl = nextLine.startsWith('http') ? nextLine : new URL(nextLine, baseUrl).href; }
+        catch { continue; }
+        variants.push({
+            bandwidth:  bwMatch  ? parseInt(bwMatch[1],  10) : 0,
+            resolution: resMatch ? resMatch[1] : '',
+            url: varUrl
+        });
+    }
+    return variants.sort((a, b) => b.bandwidth - a.bandwidth);
+}
+
 function addToCatchLog(entry) {
     if (!catchLog.some(s => s.url === entry.url)) {
         catchLog.unshift(entry);
@@ -228,6 +270,11 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
         notifyUser('FDM: URL invalide ou non securise bloque.', 'error');
         return;
     }
+    if (sentUrls.has(url)) {
+        notifyUser('FDM: Ce fichier a déjà été envoyé à FDM cette session.', 'warning');
+        return;
+    }
+    sentUrls.add(url);
 
     const safeCookies = filterSensitiveCookies(cookies);
     const cleanName = extensionSettings.smartNaming ? getSmartFileName(filename, url, isYoutube) : filename;
@@ -285,7 +332,8 @@ async function sendToFDM(url, filename = "", referer = "", cookies = "", isYoutu
 }
 
 async function sendBatchToFDM(batchItems) {
-    const validItems = batchItems.filter(item => isValidDownloadUrl(item.url));
+    const validItems = batchItems.filter(item => isValidDownloadUrl(item.url) && !sentUrls.has(item.url));
+    validItems.forEach(item => sentUrls.add(item.url));
 
     if (validItems.length === 0) {
         notifyUser('FDM: Aucun URL valide a telecharger.', 'error');
@@ -404,14 +452,18 @@ api.webRequest.onResponseStarted.addListener(
                     );
                 }
 
-                if (!tabStreams[tabId].some(s => s.url === url)) {
+                const cleanUrl = cleanStreamUrl(url);
+                if (!tabStreams[tabId].some(s => s.url === cleanUrl)) {
+                    const clHeader = responseHeaders ? responseHeaders.find(h => h.name.toLowerCase() === 'content-length') : null;
+                    const sizeBytes = clHeader ? parseInt(clHeader.value, 10) : null;
                     const streamEntry = {
-                        url: url,
+                        url: cleanUrl,
                         title: "Vidéo détectée",
                         type: detectedType,
                         timestamp: Date.now(),
                         frameId: frameId,
-                        pageUrl: details.documentUrl || details.originUrl || url
+                        pageUrl: details.documentUrl || details.originUrl || cleanUrl,
+                        size: (sizeBytes && !isNaN(sizeBytes) && sizeBytes > 0) ? sizeBytes : null
                     };
 
                     tabStreams[tabId].push(streamEntry);
@@ -561,6 +613,27 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
             sendToFDM(finalUrl, message.filename, finalReferer, cookieStr, message.isYoutube);
         })();
+    } else if (message.type === "PARSE_HLS_MANIFEST") {
+        (async () => {
+            try {
+                const resp = await fetch(message.url, {
+                    headers: message.referer ? { 'Referer': message.referer } : {}
+                });
+                if (!resp.ok) { sendResponse({ variants: [] }); return; }
+                const text = await resp.text();
+                sendResponse({ variants: parseM3U8(text, message.url) });
+            } catch (e) {
+                sendResponse({ variants: [] });
+            }
+        })();
+        return true;
+    } else if (message.type === "SEND_BATCH_TO_FDM") {
+        (async () => {
+            await hydrate();
+            await sendBatchToFDM(message.items || []);
+            sendResponse({ success: true });
+        })();
+        return true;
     } else if (message.type === "CLEAR_CATCH_LOG") {
         catchLog = [];
         persist();
