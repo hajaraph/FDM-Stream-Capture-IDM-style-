@@ -1,10 +1,23 @@
 /**
- * FDM Helper - Content Script (ESM)
- * Injected via content-loader.js
+ * FDM Helper - Content Script
+ * Declared directly in manifest (isolated world, non-module) to avoid
+ * the AMO "Unsafe call to import" warning and keep extension messaging.
  */
 
-import api from './browser-compat.js';
-import { UI, TIMING } from './constants.js';
+const api = typeof browser !== 'undefined' ? browser : chrome;
+
+const UI = {
+    Z_INDEX_BUTTON: 2147483647,
+    Z_INDEX_DROPDOWN: 2147483648,
+    NOTIFICATION_COLORS: {
+        success: { bg: '#10b981', border: '#059669', icon: '✓' },
+        error: { bg: '#ef4444', border: '#dc2626', icon: '✕' },
+        warning: { bg: '#f59e0b', border: '#d97706', icon: '⚠' },
+        info: { bg: '#3b82f6', border: '#2563eb', icon: 'ℹ' }
+    }
+};
+
+const TIMING = { NOTIFICATION_DISMISS_MS: 4000 };
 
 let fdmButton = null;
 let currentVideo = null;

@@ -50,7 +50,7 @@
                 "<all_urls>"
             ],
             "js": [
-                "content-loader.js"
+                "content.js"
             ],
             "all_frames": true,
             "run_at": "document_end"
@@ -69,7 +69,6 @@
             "resources": [
                 "onboarding.html", 
                 "FDM_Linker.bat",
-                "content.js",
                 "browser-compat.js",
                 "constants.js",
                 "config.js",
