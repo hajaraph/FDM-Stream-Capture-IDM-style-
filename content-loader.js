@@ -1,9 +1,10 @@
 /**
  * FDM Helper - Content Script Loader
- * Injects content.js as a module script to avoid dynamic import() AMO warning.
+ * Loads content.js as an ES module inside the content script's isolated world,
+ * preserving access to extension messaging APIs (runtime.sendMessage / onMessage).
  */
 
-const s = document.createElement('script');
-s.type = 'module';
-s.src = browser.runtime.getURL('content.js');
-(document.head || document.documentElement).appendChild(s);
+const rt = (typeof browser !== 'undefined' ? browser : chrome).runtime;
+import(rt.getURL('content.js')).catch((e) =>
+    console.error('FDM: content.js load failed', e)
+);
