@@ -89,20 +89,18 @@ function injectPremiumStyles() {
         #fdm-download-button {
             position: fixed;
             z-index: ${UI.Z_INDEX_BUTTON};
-            height: 44px;
-            width: 44px;
-            border-radius: 22px;
-            background: rgba(15, 23, 42, 0.75);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            height: 34px;
+            width: 34px;
+            border-radius: 8px;
+            background: #0f172a;
             color: #ffffff;
             display: none;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 0 0 1.5px rgba(255, 255, 255, 0.15);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
             font-family: 'Inter', system-ui, sans-serif;
-            transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease, background 0.2s ease;
+            transition: width 0.2s ease, background 0.15s ease;
             border: none;
             padding: 0;
             pointer-events: auto;
@@ -111,31 +109,30 @@ function injectPremiumStyles() {
         }
 
         #fdm-download-button .btn-text {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
             opacity: 0;
             max-width: 0;
-            transition: opacity 0.3s ease, max-width 0.4s ease, margin 0.4s ease;
+            transition: opacity 0.25s ease, max-width 0.35s ease, margin 0.35s ease;
             margin-left: 0;
         }
 
         #fdm-download-button:hover {
-            width: 154px;
-            background: rgba(15, 23, 42, 0.95);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-            transform: scale(1.05);
+            width: 120px;
+            background: var(--fdm-brand);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
         }
 
         #fdm-download-button:hover .btn-text {
             opacity: 1;
-            max-width: 100px;
-            margin-left: 10px;
-            margin-right: 8px;
+            max-width: 80px;
+            margin-left: 8px;
+            margin-right: 6px;
         }
 
         #fdm-download-button svg {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             stroke: currentColor;
             stroke-width: 2.5;
             flex-shrink: 0;
@@ -144,36 +141,35 @@ function injectPremiumStyles() {
         
         #fdm-download-button:hover svg {
             margin-left: 0;
-            color: var(--fdm-brand);
+            color: #ffffff;
         }
 
         #fdm-dropdown-menu {
             position: fixed;
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            background: #ffffff;
             color: #0f172a;
-            min-width: 240px;
-            max-width: 320px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
-            border-radius: 14px;
+            min-width: 200px;
+            max-width: 280px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
             visibility: hidden;
             opacity: 0;
             flex-direction: column;
             z-index: ${UI.Z_INDEX_DROPDOWN};
             overflow: hidden;
-            padding: 6px;
+            padding: 4px;
             font-family: 'Inter', system-ui, sans-serif;
-            transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            transform: translateY(-8px) scale(0.95);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            transform: translateY(-4px);
             pointer-events: auto;
             display: flex;
         }
 
         .fdm-dropdown-item {
-            padding: 12px 14px;
+            padding: 7px 8px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 500;
             white-space: nowrap;
             overflow: hidden;
@@ -181,36 +177,30 @@ function injectPremiumStyles() {
             color: #334155;
             display: flex;
             align-items: center;
-            gap: 12px;
-            border-radius: 12px;
+            gap: 8px;
+            border-radius: 4px;
             position: relative;
             user-select: none;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            animation: fdmSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-            border-left: 0 solid var(--fdm-brand);
+            transition: background-color 0.1s ease, color 0.1s ease;
         }
 
-        @keyframes fdmSlideIn {
-            from { opacity: 0; transform: translateX(-10px); }
-            to { opacity: 1; transform: translateX(0); }
+        .fdm-dropdown-item + .fdm-dropdown-item {
+            border-top: 1px solid #f1f5f9;
         }
 
         .fdm-dropdown-item:hover {
-            background-color: var(--fdm-brand-muted);
+            background-color: #f1f5f9;
             color: var(--fdm-brand);
-            transform: translateX(8px);
-            border-left: 4px solid var(--fdm-brand);
-            padding-left: 10px;
         }
 
         .fdm-type-badge {
             flex-shrink: 0;
-            padding: 2px 6px;
-            border-radius: 5px;
-            font-size: 9px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 8px;
             font-weight: 800;
             text-transform: uppercase;
-            min-width: 34px;
+            min-width: 28px;
             text-align: center;
             color: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -222,6 +212,32 @@ function injectPremiumStyles() {
             color: #64748b;
             text-align: center;
             font-style: italic;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            #fdm-dropdown-menu {
+                background: #1e293b;
+                color: #e2e8f0;
+                border-color: #334155;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            }
+
+            .fdm-dropdown-item {
+                color: #cbd5e1;
+            }
+
+            .fdm-dropdown-item + .fdm-dropdown-item {
+                border-top-color: #334155;
+            }
+
+            .fdm-dropdown-item:hover {
+                background-color: #334155;
+                color: #ffffff;
+            }
+
+            .fdm-empty-msg {
+                color: #94a3b8;
+            }
         }
     `;
     fdmShadowRoot.appendChild(style);
@@ -261,14 +277,14 @@ function createFdmButton() {
         } else {
             const rect = fdmButton.getBoundingClientRect();
             dropdownMenu.style.top = (rect.bottom + 8) + 'px';
-            dropdownMenu.style.left = Math.min(rect.left, window.innerWidth - 260) + 'px';
+            dropdownMenu.style.left = Math.min(rect.left, window.innerWidth - 210) + 'px';
             
             await populateDropdown();
             
             dropdownMenu.style.visibility = 'visible';
             dropdownMenu.style.opacity = '1';
             dropdownMenu.style.pointerEvents = 'auto'; 
-            dropdownMenu.style.transform = 'translateY(0) scale(1)';
+            dropdownMenu.style.transform = 'translateY(0)';
         }
     });
 
@@ -290,7 +306,7 @@ function hideMenu() {
     dropdownMenu.style.visibility = 'hidden';
     dropdownMenu.style.opacity = '0';
     dropdownMenu.style.pointerEvents = 'none';
-    dropdownMenu.style.transform = 'translateY(-10px) scale(0.95)';
+    dropdownMenu.style.transform = 'translateY(-4px)';
 }
 
 function positionButton(video) {
@@ -335,8 +351,7 @@ function addDropdownItem(stream, index = 0) {
 
     const item = document.createElement('div');
     item.className = 'fdm-dropdown-item';
-    item.style.animationDelay = (index * 0.04) + 's';
-    
+
     let ext = 'FILE';
     if (stream.url) {
         const lowerUrl = stream.url.toLowerCase();
@@ -365,7 +380,6 @@ function addDropdownItem(stream, index = 0) {
     const badgeSpan = document.createElement('span');
     badgeSpan.className = 'fdm-type-badge';
     badgeSpan.style.backgroundColor = badgeColor;
-    badgeSpan.style.boxShadow = `0 2px 8px ${badgeColor}44`;
     badgeSpan.textContent = ext;
 
     const nameSpan = document.createElement('span');
